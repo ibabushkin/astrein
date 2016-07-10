@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ViewPatterns #-}
 module Language.ASTrein.Query where
 
 import Control.Applicative ((<|>))
@@ -6,6 +6,8 @@ import Control.Applicative ((<|>))
 import Data.Attoparsec.Text
 import Data.Text (Text)
 import qualified Data.Text as T
+
+import Language.ASTrein.Util (readMaybe)
 
 -- | a name that can be queried for
 data Name
@@ -29,32 +31,56 @@ nameParser =
 
 -- | toplevel query
 toplevelParser :: Parser Query
-toplevelParser = (nestParser <|> rangeParser <|>
-    identParser <|> lineNumParser <|> complexParser) <* endOfInput
+toplevelParser = choice
+    [ nestParser
+    , rangeParser
+    , identParser
+    , lineNumParser
+    , complexParser
+    ] <* endOfInput
 
 -- | atomic parser of subquery
 queryParser :: Parser Query
 queryParser = identParser <|> complexParser
 
--- | things that need parens
+-- | things that need parens - parser
 complexParser :: Parser Query
 complexParser = char '(' *> skipSpace *> guts <* skipSpace <* char ')'
     where guts = nestParser <|> rangeParser <|> lineNumParser
 
--- | parse an ident
+-- | ident parser
 identParser :: Parser Query
 identParser = Ident <$> nameParser
 
--- | parse a nesting of two queries
+-- | nest parser
 nestParser :: Parser Query
 nestParser = Nest <$> queryParser <*> (" . " *> queryParser)
 
--- | parse a range of two queries
+-- | range parser
 rangeParser :: Parser Query
 rangeParser = Range <$> queryParser <*> (" - " *> queryParser)
 
+-- | line num parser
 lineNumParser :: Parser Query
 lineNumParser = LineNumber <$> decimal
 
-parseQuery :: Text -> Either String Query
-parseQuery = parseOnly toplevelParser
+-- | parse a Text object into a Query
+parseQuery :: Text -> Maybe Query
+parseQuery = either (const Nothing) Just . parseOnly toplevelParser
+
+-- | RPN query parser
+queryParserRPN :: Parser [Query]
+queryParserRPN = foldl go [] <$> sepBy (takeWhile1 (/= ' ')) space
+    where go :: [Query] -> Text -> [Query]
+          go (t2:t1:ts) "." = Nest t1 t2 : ts
+          go (t2:t1:ts) "-" = Range t1 t2 : ts
+          go ts (T.uncons -> Just ('.', n)) = Ident (ValueName n) : ts
+          go ts (T.uncons -> Just (':', n)) = Ident (TypeName n) : ts
+          go ts (readMaybe -> Just ln) = LineNumber ln : ts
+
+-- | parse a query in RPN syntax
+parseQueryRPN :: Text -> Maybe Query
+parseQueryRPN input =
+    case parseOnly queryParserRPN input of
+      Right [q] -> Just q
+      _ -> Nothing
