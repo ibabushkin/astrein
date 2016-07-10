@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Language.ASTrein.Query where
 
 import Control.Applicative ((<|>))
@@ -22,13 +23,14 @@ data Query
 
 -- | parse a name, the basic building block of a query
 nameParser :: Parser Name
-nameParser = (char ':' *> (TypeName <$> takeWhile1 (/= ' '))) <|>
-    (char '.' *> (ValueName <$> takeWhile1 (/= ' ')))
+nameParser =
+    (char ':' *> (TypeName <$> name)) <|> (char '.' *> (ValueName <$> name))
+    where name = takeWhile1 (`notElem` (" ()" :: String))
 
 -- | toplevel query
 toplevelParser :: Parser Query
-toplevelParser = (identParser <|> nestParser <|> rangeParser <|>
-    lineNumParser <|> complexParser) <* endOfInput
+toplevelParser = (nestParser <|> rangeParser <|>
+    identParser <|> lineNumParser <|> complexParser) <* endOfInput
 
 -- | atomic parser of subquery
 queryParser :: Parser Query
@@ -45,14 +47,14 @@ identParser = Ident <$> nameParser
 
 -- | parse a nesting of two queries
 nestParser :: Parser Query
-nestParser = Nest <$> queryParser <*> (char ' ' *> queryParser)
+nestParser = Nest <$> queryParser <*> (" . " *> queryParser)
 
 -- | parse a range of two queries
 rangeParser :: Parser Query
-rangeParser = Range <$> queryParser <*> (char '-' *> queryParser)
+rangeParser = Range <$> queryParser <*> (" - " *> queryParser)
 
 lineNumParser :: Parser Query
 lineNumParser = LineNumber <$> decimal
 
-parseQuery :: Text -> Maybe Query
-parseQuery = maybeResult . parse toplevelParser
+parseQuery :: Text -> Either String Query
+parseQuery = parseOnly toplevelParser
