@@ -16,6 +16,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Language.ASTrein
+                     , Language.ASTrein.AST
                      , Language.ASTrein.Query
                      , Language.ASTrein.Util
   build-depends:       attoparsec >= 0.13.0.2

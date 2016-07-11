@@ -52,7 +52,7 @@ toplevelParser = choice
 queryParser :: Parser Query
 queryParser = identParser <|> complexParser
 
--- | things that need parens - parser
+-- | things that need/have parens - parser
 complexParser :: Parser Query
 complexParser = char '(' *> skipSpace *> guts <* skipSpace <* char ')'
     where guts = nestParser <|> rangeParser <|> lineNumParser
