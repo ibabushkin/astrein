@@ -39,7 +39,10 @@ chainingParser :: AST a
                => Text
                -> (Query a -> Query a -> Query a)
                -> Parser (Query a)
-chainingParser sep cons = cons <$> toplevel <*> (string sep *> toplevel)
-    where toplevel = choice $
-              (mappend <$> map brace . chains <*> elements) parsers
-          brace parser = char '(' *> parser <* char ')'
+chainingParser sep cons =
+    cons <$> toplevelParser <*> (string sep *> toplevelParser)
+
+toplevelParser :: AST a => Parser (Query a)
+toplevelParser = choice $ (mappend <$> map brace . chains <*> elements) parsers
+    where brace parser = char '(' *> parser <* char ')'
+
