@@ -26,10 +26,10 @@ data Parsers a = Parsers
 
 -- | generate a parser for an atomic query for a named object, for instance
 -- a type, class or value.
-elementParser :: (AST a, Query a ~ b)
+elementParser :: AST a
               => Char
-              -> (Text -> b)
-              -> Parser b
+              -> (Text -> Query a)
+              -> Parser (Query a)
 elementParser c cons = char c *> (cons <$> name)
     where name = takeWhile1 (`notElem` (" ()" :: String))
 

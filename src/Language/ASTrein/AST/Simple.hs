@@ -19,21 +19,21 @@ newtype ValueName = ValueName Text
 newtype LineNumber = LineNumber Integer
     deriving (Show, Read, Eq)
 
--- | a query
-data SimpleQuery
-    = TypeIdent TypeName -- ^ query for a type name
-    | ValueIdent ValueName -- ^ query for a value name
-    | Nest SimpleQuery SimpleQuery
-    -- ^ reduce the search-space using the first query
-    | Range SimpleQuery SimpleQuery -- ^ return the range between matches
-    | LineIdent LineNumber -- ^ get the object at a given linenumber
-    deriving (Show, Read, Eq)
-
 instance AST SimpleAST where
-    data Query SimpleAST = SimpleQuery
+    data Query SimpleAST
+        = TypeIdent TypeName
+        | ValueIdent ValueName
+        | Nest (Query SimpleAST) (Query SimpleAST)
+        | Range (Query SimpleAST) (Query SimpleAST)
+        | LineIdent LineNumber
     -- every query matches for demonstration purposes
     match ast _ = ast
     parsers = Parsers
-        { elements = [elementParser '.' (ValueIdent . ValueName)]
-        , chains = []
+        { elements = [ elementParser '.' (ValueIdent . ValueName)
+                     , elementParser ':' (TypeIdent . TypeName)
+                     , lineNumParser (LineIdent . LineNumber)
+                     ]
+        , chains = [ chainingParser " . " Nest
+                   , chainingParser " - " Range
+                   ]
         }
