@@ -17,6 +17,7 @@ class AST a where
     parsers :: Parsers a
     -- | parse a query from text
     parseQuery :: Text -> Maybe (Query a)
+    parseQuery = either (const Nothing) Just . parseOnly toplevelParser
 
 data Parsers a = Parsers
     { elements :: [Parser (Query a)]
@@ -25,10 +26,10 @@ data Parsers a = Parsers
 
 -- | generate a parser for an atomic query for a named object, for instance
 -- a type, class or value.
-elementParser :: AST a
+elementParser :: (AST a, Query a ~ b)
               => Char
-              -> (Text -> Query a)
-              -> Parser (Query a)
+              -> (Text -> b)
+              -> Parser b
 elementParser c cons = char c *> (cons <$> name)
     where name = takeWhile1 (`notElem` (" ()" :: String))
 
@@ -40,10 +41,12 @@ chainingParser :: AST a
                -> (Query a -> Query a -> Query a)
                -> Parser (Query a)
 chainingParser sep cons =
-    cons <$> toplevelParser <*> (string sep *> toplevelParser)
+    cons <$> complexParser <*> (string sep *> complexParser)
 
-toplevelParser :: AST a => Parser (Query a)
-toplevelParser = choice ((mappend <$> map brace . chains <*> elements) parsers)
+complexParser :: AST a => Parser (Query a)
+complexParser = choice ((mappend <$> map brace . chains <*> elements) parsers)
     <* endOfInput
     where brace p = char '(' *> skipSpace *> p <* skipSpace <* char ')'
 
+toplevelParser :: AST a => Parser (Query a)
+toplevelParser = choice (complexParser : chains parsers)

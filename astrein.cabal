@@ -17,6 +17,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Language.ASTrein
                      , Language.ASTrein.AST
+                     , Language.ASTrein.AST.Simple
                      , Language.ASTrein.Query
                      , Language.ASTrein.Util
   build-depends:       attoparsec >= 0.13.0.2
