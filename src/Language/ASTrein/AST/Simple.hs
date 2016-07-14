@@ -7,6 +7,7 @@ import Data.Attoparsec.Text
 import Data.Text (Text)
 
 newtype SimpleAST = SimpleAST ()
+    deriving (Show, Read, Eq)
 
 -- | a type, given by name
 newtype TypeName = TypeName Text
@@ -26,6 +27,7 @@ instance AST SimpleAST where
         | Nest (Query SimpleAST) (Query SimpleAST)
         | Range (Query SimpleAST) (Query SimpleAST)
         | LineIdent LineNumber
+        deriving (Show, Eq)
     -- every query matches for demonstration purposes
     match ast _ = ast
     parsers = Parsers

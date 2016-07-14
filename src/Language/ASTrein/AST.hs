@@ -45,8 +45,7 @@ chainingParser sep cons =
 
 complexParser :: AST a => Parser (Query a)
 complexParser = choice ((mappend <$> map brace . chains <*> elements) parsers)
-    <* endOfInput
     where brace p = char '(' *> skipSpace *> p <* skipSpace <* char ')'
 
 toplevelParser :: AST a => Parser (Query a)
-toplevelParser = choice (complexParser : chains parsers)
+toplevelParser = (choice (chains parsers) <|> complexParser) <* endOfInput
