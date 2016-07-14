@@ -6,6 +6,7 @@ import Language.ASTrein.AST
 import Data.Attoparsec.Text
 import Data.Text (Text)
 
+-- | trivial AST for demonstration purposes
 newtype SimpleAST = SimpleAST ()
     deriving (Show, Read, Eq)
 
@@ -17,10 +18,13 @@ newtype TypeName = TypeName Text
 newtype ValueName = ValueName Text
     deriving (Show, Read, Eq)
 
+-- | a line number
 newtype LineNumber = LineNumber Integer
     deriving (Show, Read, Eq)
 
+-- | implement the AST typeclass for the SimpleAST type
 instance AST SimpleAST where
+    -- | the associated query type
     data Query SimpleAST
         = TypeIdent TypeName
         | ValueIdent ValueName
@@ -28,8 +32,9 @@ instance AST SimpleAST where
         | Range (Query SimpleAST) (Query SimpleAST)
         | LineIdent LineNumber
         deriving (Show, Eq)
-    -- every query matches for demonstration purposes
+    -- | every query matches for obvious reasons
     match ast _ = ast
+    -- | all our parsers
     parsers = Parsers
         { elements = [ elementParser '.' (ValueIdent . ValueName)
                      , elementParser ':' (TypeIdent . TypeName)
