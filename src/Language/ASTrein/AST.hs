@@ -35,10 +35,6 @@ elementParser :: AST a
 elementParser c cons = char c *> (cons <$> name)
     where name = takeWhile1 (`notElem` (" ()" :: String))
 
--- | a line number element
-lineNumParser :: AST a => (Integer -> Query a) -> Parser (Query a)
-lineNumParser = (<$> decimal)
-
 -- | combinator to allow for chaining two parsers together with an infix
 -- to construct a nested query.
 chainingParser :: AST a

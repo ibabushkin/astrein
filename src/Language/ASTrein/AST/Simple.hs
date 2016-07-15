@@ -2,6 +2,7 @@
 module Language.ASTrein.AST.Simple where
 
 import Language.ASTrein.AST
+import Language.ASTrein.AST.Template
 
 import Data.Attoparsec.Text
 import Data.Text (Text)
@@ -36,8 +37,8 @@ instance AST SimpleAST where
     match ast _ = ast
     -- | all our parsers
     parsers = Parsers
-        { elements = [ elementParser '.' (ValueIdent . ValueName)
-                     , elementParser ':' (TypeIdent . TypeName)
+        { elements = [ valueParser (ValueIdent . ValueName)
+                     , typeParser (TypeIdent . TypeName)
                      , lineNumParser (LineIdent . LineNumber)
                      ]
         , chains = [ chainingParser " . " Nest
