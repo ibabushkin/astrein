@@ -13,7 +13,7 @@ data HaskellAST = HaskellAST
     , modulePragmas :: [ModulePragma SrcSpanInfo]
     , imports :: [ImportDecl SrcSpanInfo]
     , decls :: [Decl SrcSpanInfo]
-    } deriving (Show, Read, Eq)
+    } deriving (Show, Eq)
 
 data ModuleHeadQuery
     = MHNameQuery String
