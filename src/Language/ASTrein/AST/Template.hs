@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, TypeFamilies, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, TypeFamilies #-}
 module Language.ASTrein.AST.Template where
 
 import Language.ASTrein.AST

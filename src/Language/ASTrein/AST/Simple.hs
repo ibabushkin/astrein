@@ -1,10 +1,9 @@
-{-# LANGUAGE OverloadedStrings, TypeFamilies, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, TypeFamilies #-}
 module Language.ASTrein.AST.Simple where
 
 import Language.ASTrein.AST
 import Language.ASTrein.AST.Template
 
-import Data.Attoparsec.Text
 import Data.Text (Text)
 
 -- | trivial AST for demonstration purposes
