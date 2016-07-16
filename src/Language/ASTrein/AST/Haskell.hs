@@ -8,7 +8,7 @@ import Language.Haskell.Exts.Annotated
 import Data.Text (Text)
 
 -- | a Haskell AST
-newtype HaskellAST = HaskellAST
+data HaskellAST = HaskellAST
     { moduleHead :: Maybe (ModuleHead SrcSpanInfo)
     , modulePragmas :: [ModulePragma SrcSpanInfo]
     , imports :: [ImportDecl SrcSpanInfo]
