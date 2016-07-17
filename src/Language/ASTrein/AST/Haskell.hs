@@ -17,20 +17,24 @@ data HaskellAST = HaskellAST
 
 -- | query a module name
 newtype NQuery = NQuery Text
+    deriving (Show, Eq)
 
 -- | query an export declaration
 newtype EQuery = EQuery Text
+    deriving (Show, Eq)
 
 -- | query an import declaration
 newtype IQuery = IQuery Text
+    deriving (Show, Eq)
 
 data DQuery
-    = TypeName Text -- ^ query for a type's origin - this might be a data decl
-    | TypeFamily Text -- ^ query for a type family - this might be a data fam
-    | Class Text -- ^ query for a typeclass
+    = TypeName Text -- ^ query for a type's origin
+    | TypeFamilyName Text -- ^ query for a type family
+    | ClassName Text -- ^ query for a typeclass
     | Instance Text Text -- ^ query for some instance
     | TypeSignature () -- TODO: implement
-    | Func Text -- ^ query for a function
+    | FuncName Text -- ^ query for a function
+    deriving (Show, Eq)
 
 instance AST HaskellAST where
     data Query HaskellAST
@@ -38,5 +42,16 @@ instance AST HaskellAST where
         | EName EQuery
         | IName IQuery
         | DName DQuery
+        | Range (Query HaskellAST) (Query HaskellAST)
+        deriving (Show, Eq)
     match a _ = a
-    parsers = Parsers [] []
+    parsers = Parsers
+        { elements = [ typeParser (DName . TypeName)
+                     -- TODO: type families
+                     , classParser (DName . ClassName)
+                     , instanceParser (\a b -> DName (Instance a b))
+                     -- TODO: type sigs
+                     , valueParser (DName . FuncName)
+                     ]
+        , chains = [ chainingParser " - " Range ]
+        }

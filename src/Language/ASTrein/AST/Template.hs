@@ -18,6 +18,10 @@ typeParser = elementParser ':'
 classParser :: AST a => (Text -> Query a) -> Parser (Query a)
 classParser = elementParser ','
 
+-- | a class/interface instance
+instanceParser :: AST a => (Text -> Text -> Query a) -> Parser (Query a)
+instanceParser = element2Parser ';'
+
 -- | a line number element
 lineNumParser :: AST a => (Integer -> Query a) -> Parser (Query a)
 lineNumParser = (<$> decimal)
