@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings, PatternGuards, TypeFamilies #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE OverloadedStrings, PatternGuards #-}
 module Language.ASTrein.AST.Haskell where
 
 import Language.ASTrein.AST
@@ -60,9 +61,9 @@ instance AST HaskellAST where
 haskellMatchAST :: HaskellAST -> Query HaskellAST -> Maybe HaskellAST
 haskellMatchAST ast (MName mQuery) = matchMQuery ast mQuery
 haskellMatchAST ast (EName eQuery) = matchEQuery ast eQuery
+haskellMatchAST ast (IName iQuery) = matchIQuery ast iQuery
 
 -- | match for a module name
--- TODO: add a way to query imported modules as well
 matchMQuery :: HaskellAST -> MQuery -> Maybe HaskellAST
 matchMQuery ast (MQuery queryName)
     | Just (H.ModuleHead _ (H.ModuleName _ name) _ _) <- moduleHead ast
@@ -90,9 +91,19 @@ matchEQuery ast (EQuery queryExport)
           go (EThingWith _ _ _) _ = Nothing -- TODO
           go (EModuleContents _ _) _ = Nothing -- TODO
 
+matchIQuery :: HaskellAST -> IQuery -> Maybe HaskellAST
+matchIQuery ast@HaskellAST{ imports = imports } (IQuery queryImport) =
+    foldr go Nothing imports
+    where go _ res@(Just _) = res
+          go ImportDecl{ importModule = ModuleName _ importName } _
+              | pack importName == queryImport = Just ast
+              | otherwise = Nothing
+
+
+matchDQuery _ _ = Nothing
+
 getQName :: QName a -> Maybe Text
 getQName (UnQual _ (Ident _ name)) = Just $ pack name -- TODO: find differences
 getQName (UnQual _ (Symbol _ name)) = Just $ pack name
 getQName _ = Nothing
 
-matchDQuery _ _ = Nothing
