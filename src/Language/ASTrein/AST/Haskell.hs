@@ -1,11 +1,11 @@
-{-# LANGUAGE OverloadedStrings, TypeFamilies #-}
+{-# LANGUAGE OverloadedStrings, PatternGuards, TypeFamilies #-}
 module Language.ASTrein.AST.Haskell where
 
 import Language.ASTrein.AST
 import Language.ASTrein.AST.Template
-import qualified Language.Haskell.Exts.Annotated as H
+import Language.Haskell.Exts.Annotated as H
 
-import Data.Text (Text)
+import Data.Text (Text, pack)
 
 -- | a Haskell AST
 data HaskellAST = HaskellAST
@@ -16,7 +16,7 @@ data HaskellAST = HaskellAST
     } deriving (Show, Eq)
 
 -- | query a module name
-newtype NQuery = NQuery Text
+newtype MQuery = MQuery Text
     deriving (Show, Eq)
 
 -- | query an export declaration
@@ -38,13 +38,13 @@ data DQuery
 
 instance AST HaskellAST where
     data Query HaskellAST
-        = MName NQuery
+        = MName MQuery
         | EName EQuery
         | IName IQuery
         | DName DQuery
         | Range (Query HaskellAST) (Query HaskellAST)
         deriving (Show, Eq)
-    match a _ = a
+    match = haskellMatchAST
     parsers = Parsers
         { elements = [ typeParser (DName . TypeName)
                      -- TODO: type families
@@ -55,3 +55,44 @@ instance AST HaskellAST where
                      ]
         , chains = [ chainingParser " - " Range ]
         }
+
+-- | match a query on an AST
+haskellMatchAST :: HaskellAST -> Query HaskellAST -> Maybe HaskellAST
+haskellMatchAST ast (MName mQuery) = matchMQuery ast mQuery
+haskellMatchAST ast (EName eQuery) = matchEQuery ast eQuery
+
+-- | match for a module name
+-- TODO: add a way to query imported modules as well
+matchMQuery :: HaskellAST -> MQuery -> Maybe HaskellAST
+matchMQuery ast (MQuery queryName)
+    | Just (H.ModuleHead _ (H.ModuleName _ name) _ _) <- moduleHead ast
+    , pack name == queryName = Just ast
+    | otherwise = Nothing
+
+-- | match export queries by searching for an appropriate export and querying
+-- for it's definition
+matchEQuery :: HaskellAST -> EQuery -> Maybe HaskellAST
+matchEQuery ast (EQuery queryExport)
+    | Just (H.ModuleHead _ _ _ (Just exports)) <- moduleHead ast
+    , Just dquery <- findName exports = matchDQuery ast dquery
+    | otherwise = Nothing
+    where findName (ExportSpecList _ exportList) = foldr go Nothing exportList
+          go _ res@(Just _) = res
+          go (EVar _ varName) _
+              | Just name <- getQName varName, name == queryExport =
+                  Just (FuncName name)
+              | otherwise = Nothing
+          go (EAbs _ _ typeName) _
+              | Just name <- getQName typeName, name == queryExport =
+                  Just (TypeName name)
+              | otherwise = Nothing
+          go (EThingAll _ _) _ = Nothing -- TODO
+          go (EThingWith _ _ _) _ = Nothing -- TODO
+          go (EModuleContents _ _) _ = Nothing -- TODO
+
+getQName :: QName a -> Maybe Text
+getQName (UnQual _ (Ident _ name)) = Just $ pack name -- TODO: find differences
+getQName (UnQual _ (Symbol _ name)) = Just $ pack name
+getQName _ = Nothing
+
+matchDQuery _ _ = Nothing

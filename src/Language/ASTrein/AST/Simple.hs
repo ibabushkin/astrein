@@ -33,7 +33,7 @@ instance AST SimpleAST where
         | LineIdent LineNumber
         deriving (Show, Eq)
     -- | every query matches for obvious reasons
-    match ast _ = ast
+    match ast _ = Just ast
     -- | all our parsers
     parsers = Parsers
         { elements = [ valueParser (ValueIdent . ValueName)
