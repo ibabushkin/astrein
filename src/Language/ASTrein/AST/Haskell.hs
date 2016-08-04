@@ -4,7 +4,7 @@ module Language.ASTrein.AST.Haskell where
 
 import Language.ASTrein.AST
 import Language.ASTrein.AST.Template
-import Language.Haskell.Exts.Annotated as H
+import Language.Haskell.Exts as H
 
 import Data.Text (Text, pack)
 
@@ -16,18 +16,14 @@ data HaskellAST = HaskellAST
     , decls :: [H.Decl H.SrcSpanInfo]
     } deriving (Show, Eq)
 
--- | query a module name
-newtype MQuery = MQuery Text
+-- | query for a declaration in the module head (including imports)
+data HQuery
+    = MName Text -- ^ query for a module name
+    | EName Text -- ^ query for an export declaration
+    | IName Text -- ^ query an import declaration
     deriving (Show, Eq)
 
--- | query an export declaration
-newtype EQuery = EQuery Text
-    deriving (Show, Eq)
-
--- | query an import declaration
-newtype IQuery = IQuery Text
-    deriving (Show, Eq)
-
+-- | query for a declaration in the source's body
 data DQuery
     = TypeName Text -- ^ query for a type's origin
     | TypeFamilyName Text -- ^ query for a type family
@@ -39,14 +35,12 @@ data DQuery
 
 instance AST HaskellAST where
     data Query HaskellAST
-        = MName MQuery
-        | EName EQuery
-        | IName IQuery
+        = HName HQuery
         | DName DQuery
         | Range (Query HaskellAST) (Query HaskellAST)
         deriving (Show, Eq)
     match = haskellMatchAST
-    parsers = Parsers
+    parsers = Parsers -- TODO: HNames
         { elements = [ typeParser (DName . TypeName)
                      -- TODO: type families
                      , classParser (DName . ClassName)
@@ -59,21 +53,15 @@ instance AST HaskellAST where
 
 -- | match a query on an AST
 haskellMatchAST :: HaskellAST -> Query HaskellAST -> Maybe HaskellAST
-haskellMatchAST ast (MName mQuery) = matchMQuery ast mQuery
-haskellMatchAST ast (EName eQuery) = matchEQuery ast eQuery
-haskellMatchAST ast (IName iQuery) = matchIQuery ast iQuery
+haskellMatchAST ast (HName hQuery) = matchHQuery ast hQuery
+haskellMatchAST ast (DName dQuery) = matchDQuery ast dQuery
 
--- | match for a module name
-matchMQuery :: HaskellAST -> MQuery -> Maybe HaskellAST
-matchMQuery ast (MQuery queryName)
+matchHQuery :: HaskellAST -> HQuery -> Maybe HaskellAST
+matchHQuery ast (MName queryName)
     | Just (H.ModuleHead _ (H.ModuleName _ name) _ _) <- moduleHead ast
     , pack name == queryName = Just ast
     | otherwise = Nothing
-
--- | match export queries by searching for an appropriate export and querying
--- for it's definition
-matchEQuery :: HaskellAST -> EQuery -> Maybe HaskellAST
-matchEQuery ast (EQuery queryExport)
+matchHQuery ast (EName queryExport)
     | Just (H.ModuleHead _ _ _ (Just exports)) <- moduleHead ast
     , Just dquery <- findName exports = matchDQuery ast dquery
     | otherwise = Nothing
@@ -87,12 +75,9 @@ matchEQuery ast (EQuery queryExport)
               | Just name <- getQName typeName, name == queryExport =
                   Just (TypeName name)
               | otherwise = Nothing
-          go (EThingAll _ _) _ = Nothing -- TODO
-          go (EThingWith _ _ _) _ = Nothing -- TODO
+          go (EThingWith _ _ _ _) _ = Nothing -- TODO
           go (EModuleContents _ _) _ = Nothing -- TODO
-
-matchIQuery :: HaskellAST -> IQuery -> Maybe HaskellAST
-matchIQuery ast@HaskellAST{ imports = imports } (IQuery queryImport) =
+matchHQuery ast@HaskellAST{ imports = imports } (IName queryImport) =
     foldr go Nothing imports
     where go _ res@(Just _) = res
           go ImportDecl{ importModule = ModuleName _ importName } _
