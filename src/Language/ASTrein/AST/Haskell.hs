@@ -6,14 +6,15 @@ import Language.ASTrein.AST
 import Language.ASTrein.AST.Template
 import Language.Haskell.Exts as H
 
+import Data.Monoid ((<>))
 import Data.Text (Text, pack)
 
 -- | a Haskell AST
 data HaskellAST = HaskellAST
-    { moduleHead :: Maybe (H.ModuleHead H.SrcSpanInfo)
-    , modulePragmas :: [H.ModulePragma H.SrcSpanInfo]
-    , imports :: [H.ImportDecl H.SrcSpanInfo]
-    , decls :: [H.Decl H.SrcSpanInfo]
+    { moduleHead :: Maybe (H.ModuleHead H.SrcSpanInfo) -- ^ module head
+    , modulePragmas :: [H.ModulePragma H.SrcSpanInfo] -- ^ pragmas
+    , imports :: [H.ImportDecl H.SrcSpanInfo] -- ^ imported modules
+    , decls :: [H.Decl H.SrcSpanInfo] -- ^ normal declarations
     } deriving (Show, Eq)
 
 -- | query for a declaration in the module head (including imports)
@@ -56,6 +57,7 @@ haskellMatchAST :: HaskellAST -> Query HaskellAST -> Maybe HaskellAST
 haskellMatchAST ast (HName hQuery) = matchHQuery ast hQuery
 haskellMatchAST ast (DName dQuery) = matchDQuery ast dQuery
 
+-- | match a query on an AST's head
 matchHQuery :: HaskellAST -> HQuery -> Maybe HaskellAST
 matchHQuery ast (MName queryName)
     | Just (H.ModuleHead _ (H.ModuleName _ name) _ _) <- moduleHead ast
@@ -75,8 +77,12 @@ matchHQuery ast (EName queryExport)
               | Just name <- getQName typeName, name == queryExport =
                   Just (TypeName name)
               | otherwise = Nothing
-          go (EThingWith _ _ _ _) _ = Nothing -- TODO
-          go (EModuleContents _ _) _ = Nothing -- TODO
+          go (EThingWith _ _ thingName _) _
+              | Just name <- getQName thingName, name == queryExport =
+                  Just (TypeName name) -- FIXME: what about typeclasses?
+              | otherwise = Nothing
+          -- ignore module reexports for now
+          go (EModuleContents _ _) _ = Nothing
 matchHQuery ast@HaskellAST{ imports = imports } (IName queryImport) =
     foldr go Nothing imports
     where go _ res@(Just _) = res
@@ -84,11 +90,23 @@ matchHQuery ast@HaskellAST{ imports = imports } (IName queryImport) =
               | pack importName == queryImport = Just ast
               | otherwise = Nothing
 
-
+-- | match a query on an AST's body
+-- TODO: implement properly
+matchDQuery :: HaskellAST -> DQuery -> Maybe HaskellAST
 matchDQuery _ _ = Nothing
 
+-- | get a textual representation of a (possibly qualified name)
 getQName :: QName a -> Maybe Text
-getQName (UnQual _ (Ident _ name)) = Just $ pack name -- TODO: find differences
-getQName (UnQual _ (Symbol _ name)) = Just $ pack name
+getQName (UnQual _ name) = Just $ getName name
+getQName (Qual _ mName name) =
+    Just $ getModuleName mName <> "." <> getName name
 getQName _ = Nothing
 
+-- | get a textual representation of a name
+getName :: Name a -> Text
+getName (Ident _ name) = pack name -- TODO: find differences between the cases
+getName (Symbol _ name) = pack name
+
+-- | get a textual representation of a module name
+getModuleName :: ModuleName a -> Text
+getModuleName (ModuleName _ name) = pack name
