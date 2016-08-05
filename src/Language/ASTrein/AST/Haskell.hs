@@ -101,7 +101,6 @@ matchHQuery ast@HaskellAST{ imports = imports } (IName queryImport) =
               pack importName == queryImport
 
 -- | match a query on an AST's body
--- TODO: implement properly
 matchDQuery :: [Decl SrcSpanInfo] -> DQuery -> QueryResult HaskellAST
 matchDQuery decls query =
     case mapMaybe (matchDQuery' query) decls of
@@ -111,14 +110,43 @@ matchDQuery decls query =
 -- match a DQuery on a toplevel declaration
 matchDQuery' :: DQuery -> Decl SrcSpanInfo -> Maybe (Decl SrcSpanInfo)
 matchDQuery' (TypeName queryName) tDecl
-    | TypeDecl _ dHead _ <- tDecl, getDeclHeadName dHead == queryName = Just tDecl
-    | DataDecl _ _ _ dHead _ _ <- tDecl, getDeclHeadName dHead == queryName = Just tDecl
+    | TypeDecl _ dHead _ <- tDecl
+    , getDeclHeadName dHead == queryName = Just tDecl
+    | DataDecl _ _ _ dHead _ _ <- tDecl
+    , getDeclHeadName dHead == queryName = Just tDecl
+    | GDataDecl _ _ _ dHead _ _ _ <- tDecl
+    , getDeclHeadName dHead == queryName = Just tDecl
     | otherwise = Nothing
 matchDQuery' (FamilyName queryName) tDecl
-    | TypeFamDecl _ dHead _ _ <- tDecl, getDeclHeadName dHead == queryName = Just tDecl
-    | ClosedTypeFamDecl _ dHead _ _ _ <- tDecl, getDeclHeadName dHead == queryName = Just tDecl
+    | TypeFamDecl _ dHead _ _ <- tDecl
+    , getDeclHeadName dHead == queryName = Just tDecl
+    | ClosedTypeFamDecl _ dHead _ _ _ <- tDecl
+    , getDeclHeadName dHead == queryName = Just tDecl
+    | DataFamDecl _ _ dHead _ <- tDecl
+    , getDeclHeadName dHead == queryName = Just tDecl
     | otherwise = Nothing
-matchDQuery' _ _ = Nothing
+matchDQuery' (ClassName queryName) tDecl
+    | ClassDecl _ _ dHead _ _ <- tDecl
+    , getDeclHeadName dHead == queryName = Just tDecl
+    | otherwise = Nothing
+matchDQuery' (Instance queryClass queryName) tDecl
+    | TypeInsDecl _ _ _ <- tDecl = Nothing -- TODO: implement
+    | DataInsDecl _ _ _ _ _ <- tDecl = Nothing -- TODO: implement
+    | GDataInsDecl _ _ _ _ _ _ <- tDecl = Nothing -- TODO: implement
+    | InstDecl _ _ _ _ <- tDecl = Nothing -- TODO: implement
+    | DerivDecl _ _ _ <- tDecl = Nothing -- TODO: implement
+    | otherwise = Nothing
+matchDQuery' (TypeSignature ()) tDecl
+    | TypeSig _ _ _ <- tDecl = Nothing -- TODO: implement
+    | otherwise = Nothing
+matchDQuery' (FuncName queryName) tDecl
+    | FunBind _ ((Match _ fName _ _ _):_) <- tDecl
+    , getName fName == queryName = Just tDecl
+    | FunBind _ ((InfixMatch _ _ fName _ _ _):_) <- tDecl
+    , getName fName == queryName = Just tDecl
+    | ForImp _ _ _ _ fName _ <- tDecl
+    , getName fName == queryName = Just tDecl
+    | otherwise = Nothing
 
 -- | get a textual representation of a declaration head's name
 getDeclHeadName :: DeclHead SrcSpanInfo -> Text
