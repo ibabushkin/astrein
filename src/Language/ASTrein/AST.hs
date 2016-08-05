@@ -11,8 +11,10 @@ import Data.Text (Text)
 class AST a where
     -- | querying type
     data Query a :: *
+    -- | query result type
+    data QueryResult a :: *
     -- | apply query to an AST
-    match :: a -> Query a -> Maybe a
+    match :: a -> Query a -> QueryResult a
     -- | all parsers needed to parse a `Text` into a `Query a`
     parsers :: Parsers a
 

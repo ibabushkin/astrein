@@ -32,8 +32,10 @@ instance AST SimpleAST where
         | Range (Query SimpleAST) (Query SimpleAST)
         | LineIdent LineNumber
         deriving (Show, Eq)
+    -- | the associated query result type
+    data QueryResult SimpleAST = Match
     -- | every query matches for obvious reasons
-    match ast _ = Just ast
+    match _ _ = Match
     -- | all our parsers
     parsers = Parsers
         { elements = [ valueParser (ValueIdent . ValueName)

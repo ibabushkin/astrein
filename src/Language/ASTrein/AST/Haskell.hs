@@ -40,36 +40,42 @@ instance AST HaskellAST where
         | DName DQuery
         | Range (Query HaskellAST) (Query HaskellAST)
         deriving (Show, Eq)
-    match = haskellMatchAST
+    data QueryResult HaskellAST
+        = ModuleNameMatch
+        | ImportMatch [ImportDecl SrcSpanInfo]
+        | DeclMatch [Decl SrcSpanInfo]
+        | NoMatch
+    match = undefined
     parsers = Parsers
-        { elements = [ elementParser "m." (HName . MName)
-                     , elementParser "e." (HName . EName)
-                     , elementParser "i." (HName . IName)
-                     , typeParser (DName . TypeName)
-                     , elementParser "|" (DName . FamilyName)
-                     , classParser (DName . ClassName)
-                     , instanceParser (\a b -> DName (Instance a b))
-                     -- TODO: type sigs
-                     , valueParser (DName . FuncName)
-                     ]
+        { elements =
+            [ elementParser "m." (HName . MName)
+            , elementParser "e." (HName . EName)
+            , elementParser "i." (HName . IName)
+            , typeParser (DName . TypeName)
+            , elementParser "|" (DName . FamilyName)
+            , classParser (DName . ClassName)
+            , instanceParser (\a b -> DName (Instance a b))
+            -- TODO: type sigs
+            , valueParser (DName . FuncName)
+            ]
         , chains = [ chainingParser " - " Range ]
         }
 
 -- | match a query on an AST
-haskellMatchAST :: HaskellAST -> Query HaskellAST -> Maybe HaskellAST
+haskellMatchAST :: HaskellAST -> Query HaskellAST -> QueryResult HaskellAST
 haskellMatchAST ast (HName hQuery) = matchHQuery ast hQuery
 haskellMatchAST ast (DName dQuery) = matchDQuery ast dQuery
 
 -- | match a query on an AST's head
-matchHQuery :: HaskellAST -> HQuery -> Maybe HaskellAST
+matchHQuery :: HaskellAST -> HQuery -> QueryResult HaskellAST
 matchHQuery ast (MName queryName)
     | Just (ModuleHead _ (ModuleName _ name) _ _) <- moduleHead ast
-    , pack name == queryName = Just ast
-    | otherwise = Nothing
+    , pack name == queryName = ModuleNameMatch
+    | otherwise = NoMatch
 matchHQuery ast (EName queryExport)
     | Just (ModuleHead _ _ _ (Just exports)) <- moduleHead ast
     , Just dquery <- findName exports = matchDQuery ast dquery
-    | otherwise = Nothing
+    | otherwise = NoMatch
     where findName (ExportSpecList _ exportList) = foldr go Nothing exportList
           go _ res@(Just _) = res
           go (EVar _ varName) _
@@ -87,16 +93,16 @@ matchHQuery ast (EName queryExport)
           -- ignore module reexports for now
           go (EModuleContents _ _) _ = Nothing
 matchHQuery ast@HaskellAST{ imports = imports } (IName queryImport) =
-    foldr go Nothing imports
-    where go _ res@(Just _) = res
-          go ImportDecl{ importModule = ModuleName _ importName } _
-              | pack importName == queryImport = Just ast
-              | otherwise = Nothing
+    case filter pred imports of
+      [] -> NoMatch
+      is -> ImportMatch is
+    where pred d@ImportDecl{ importModule = ModuleName _ importName } =
+              pack importName == queryImport
 
 -- | match a query on an AST's body
 -- TODO: implement properly
-matchDQuery :: HaskellAST -> DQuery -> Maybe HaskellAST
-matchDQuery _ _ = Nothing
+matchDQuery :: HaskellAST -> DQuery -> QueryResult HaskellAST
+matchDQuery _ _ = NoMatch
 
 -- | get a textual representation of a (possibly qualified name)
 getQName :: QName a -> Maybe Text
