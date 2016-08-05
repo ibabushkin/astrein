@@ -6,6 +6,7 @@ import Language.ASTrein.AST
 import Language.ASTrein.AST.Template
 import Language.Haskell.Exts
 
+import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>))
 import Data.Text (Text, pack)
 
@@ -64,7 +65,7 @@ instance AST HaskellAST where
 -- | match a query on an AST
 haskellMatchAST :: HaskellAST -> Query HaskellAST -> QueryResult HaskellAST
 haskellMatchAST ast (HName hQuery) = matchHQuery ast hQuery
-haskellMatchAST ast (DName dQuery) = matchDQuery ast dQuery
+haskellMatchAST ast (DName dQuery) = matchDQuery (decls ast) dQuery
 
 -- | match a query on an AST's head
 matchHQuery :: HaskellAST -> HQuery -> QueryResult HaskellAST
@@ -74,7 +75,7 @@ matchHQuery ast (MName queryName)
     | otherwise = NoMatch
 matchHQuery ast (EName queryExport)
     | Just (ModuleHead _ _ _ (Just exports)) <- moduleHead ast
-    , Just dquery <- findName exports = matchDQuery ast dquery
+    , Just dquery <- findName exports = matchDQuery (decls ast) dquery
     | otherwise = NoMatch
     where findName (ExportSpecList _ exportList) = foldr go Nothing exportList
           go _ res@(Just _) = res
@@ -101,8 +102,43 @@ matchHQuery ast@HaskellAST{ imports = imports } (IName queryImport) =
 
 -- | match a query on an AST's body
 -- TODO: implement properly
-matchDQuery :: HaskellAST -> DQuery -> QueryResult HaskellAST
-matchDQuery _ _ = NoMatch
+matchDQuery :: [Decl SrcSpanInfo] -> DQuery -> QueryResult HaskellAST
+matchDQuery decls query =
+    case mapMaybe (matchDQuery' query) decls of
+      [] -> NoMatch
+      ds -> DeclMatch ds
+
+-- match a DQuery on a toplevel declaration
+matchDQuery' :: DQuery -> Decl SrcSpanInfo -> Maybe (Decl SrcSpanInfo)
+matchDQuery' query@(TypeName queryName) tDecl@(TypeDecl ann dHead body)
+    | DHead _ tName <- dHead, getName tName == queryName = Just tDecl
+    | DHInfix _ _ tName <- dHead, getName tName == queryName = Just tDecl
+    | DHParen _ tHead' <- dHead =
+        matchDQuery' query (TypeDecl ann tHead' body) >> Just tDecl
+    | DHApp _ tHead' _ <- dHead =
+        matchDQuery' query (TypeDecl ann tHead' body) >> Just tDecl
+matchDQuery' query@(FamilyName queryName) fDecl@(TypeFamDecl ann dHead res inj)
+    | DHead _ fName <- dHead, getName fName == queryName = Just fDecl
+    | DHInfix _ _ fName <- dHead, getName fName == queryName = Just fDecl
+    | DHParen _ fHead' <- dHead =
+        matchDQuery' query (TypeFamDecl ann fHead' res inj) >> Just fDecl
+    | DHApp _ fHead' _ <- dHead =
+        matchDQuery' query (TypeFamDecl ann fHead' res inj) >> Just fDecl
+matchDQuery' query@(FamilyName queryName) fDecl@(ClosedTypeFamDecl ann dHead res inj eqn)
+    | DHead _ fName <- dHead, getName fName == queryName = Just fDecl
+    | DHInfix _ _ fName <- dHead, getName fName == queryName = Just fDecl
+    | DHParen _ fHead' <- dHead =
+        matchDQuery' query (ClosedTypeFamDecl ann fHead' res inj eqn) >> Just fDecl
+    | DHApp _ fHead' _ <- dHead =
+        matchDQuery' query (ClosedTypeFamDecl ann fHead' res inj eqn) >> Just fDecl
+matchDQuery' query@(TypeName queryName) dDecl@(DataDecl ann don con dHead cons der)
+    | DHead _ dName <- dHead, getName dName == queryName = Just dDecl
+    | DHInfix _ _ dName <- dHead, getName dName == queryName = Just dDecl
+    | DHParen _ dHead' <- dHead =
+        matchDQuery' query (DataDecl ann don con dHead' cons der) >> Just dDecl
+    | DHApp _ dHead' _ <- dHead =
+        matchDQuery' query (DataDecl ann don con dHead' cons der) >> Just dDecl
+matchDQuery' _ _ = Nothing
 
 -- | get a textual representation of a (possibly qualified name)
 getQName :: QName a -> Maybe Text
