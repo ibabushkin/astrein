@@ -110,35 +110,22 @@ matchDQuery decls query =
 
 -- match a DQuery on a toplevel declaration
 matchDQuery' :: DQuery -> Decl SrcSpanInfo -> Maybe (Decl SrcSpanInfo)
-matchDQuery' query@(TypeName queryName) tDecl@(TypeDecl ann dHead body)
-    | DHead _ tName <- dHead, getName tName == queryName = Just tDecl
-    | DHInfix _ _ tName <- dHead, getName tName == queryName = Just tDecl
-    | DHParen _ tHead' <- dHead =
-        matchDQuery' query (TypeDecl ann tHead' body) >> Just tDecl
-    | DHApp _ tHead' _ <- dHead =
-        matchDQuery' query (TypeDecl ann tHead' body) >> Just tDecl
-matchDQuery' query@(FamilyName queryName) fDecl@(TypeFamDecl ann dHead res inj)
-    | DHead _ fName <- dHead, getName fName == queryName = Just fDecl
-    | DHInfix _ _ fName <- dHead, getName fName == queryName = Just fDecl
-    | DHParen _ fHead' <- dHead =
-        matchDQuery' query (TypeFamDecl ann fHead' res inj) >> Just fDecl
-    | DHApp _ fHead' _ <- dHead =
-        matchDQuery' query (TypeFamDecl ann fHead' res inj) >> Just fDecl
-matchDQuery' query@(FamilyName queryName) fDecl@(ClosedTypeFamDecl ann dHead res inj eqn)
-    | DHead _ fName <- dHead, getName fName == queryName = Just fDecl
-    | DHInfix _ _ fName <- dHead, getName fName == queryName = Just fDecl
-    | DHParen _ fHead' <- dHead =
-        matchDQuery' query (ClosedTypeFamDecl ann fHead' res inj eqn) >> Just fDecl
-    | DHApp _ fHead' _ <- dHead =
-        matchDQuery' query (ClosedTypeFamDecl ann fHead' res inj eqn) >> Just fDecl
-matchDQuery' query@(TypeName queryName) dDecl@(DataDecl ann don con dHead cons der)
-    | DHead _ dName <- dHead, getName dName == queryName = Just dDecl
-    | DHInfix _ _ dName <- dHead, getName dName == queryName = Just dDecl
-    | DHParen _ dHead' <- dHead =
-        matchDQuery' query (DataDecl ann don con dHead' cons der) >> Just dDecl
-    | DHApp _ dHead' _ <- dHead =
-        matchDQuery' query (DataDecl ann don con dHead' cons der) >> Just dDecl
+matchDQuery' (TypeName queryName) tDecl
+    | TypeDecl _ dHead _ <- tDecl, getDeclHeadName dHead == queryName = Just tDecl
+    | DataDecl _ _ _ dHead _ _ <- tDecl, getDeclHeadName dHead == queryName = Just tDecl
+    | otherwise = Nothing
+matchDQuery' (FamilyName queryName) tDecl
+    | TypeFamDecl _ dHead _ _ <- tDecl, getDeclHeadName dHead == queryName = Just tDecl
+    | ClosedTypeFamDecl _ dHead _ _ _ <- tDecl, getDeclHeadName dHead == queryName = Just tDecl
+    | otherwise = Nothing
 matchDQuery' _ _ = Nothing
+
+-- | get a textual representation of a declaration head's name
+getDeclHeadName :: DeclHead SrcSpanInfo -> Text
+getDeclHeadName (DHead _ tName) = getName tName
+getDeclHeadName (DHInfix _ _ tName) = getName tName
+getDeclHeadName (DHParen _ tHead) = getDeclHeadName tHead
+getDeclHeadName (DHApp _ tHead _) = getDeclHeadName tHead
 
 -- | get a textual representation of a (possibly qualified name)
 getQName :: QName a -> Maybe Text
