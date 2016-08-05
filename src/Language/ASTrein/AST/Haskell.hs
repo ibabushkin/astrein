@@ -4,17 +4,17 @@ module Language.ASTrein.AST.Haskell where
 
 import Language.ASTrein.AST
 import Language.ASTrein.AST.Template
-import Language.Haskell.Exts as H
+import Language.Haskell.Exts
 
 import Data.Monoid ((<>))
 import Data.Text (Text, pack)
 
 -- | a Haskell AST
 data HaskellAST = HaskellAST
-    { moduleHead :: Maybe (H.ModuleHead H.SrcSpanInfo) -- ^ module head
-    , modulePragmas :: [H.ModulePragma H.SrcSpanInfo] -- ^ pragmas
-    , imports :: [H.ImportDecl H.SrcSpanInfo] -- ^ imported modules
-    , decls :: [H.Decl H.SrcSpanInfo] -- ^ normal declarations
+    { moduleHead :: Maybe (ModuleHead SrcSpanInfo) -- ^ module head
+    , modulePragmas :: [ModulePragma SrcSpanInfo] -- ^ pragmas
+    , imports :: [ImportDecl SrcSpanInfo] -- ^ imported modules
+    , decls :: [Decl SrcSpanInfo] -- ^ normal declarations
     } deriving (Show, Eq)
 
 -- | query for a declaration in the module head (including imports)
@@ -27,7 +27,7 @@ data HQuery
 -- | query for a declaration in the source's body
 data DQuery
     = TypeName Text -- ^ query for a type's origin
-    | TypeFamilyName Text -- ^ query for a type family
+    | FamilyName Text -- ^ query for a type- or data family
     | ClassName Text -- ^ query for a typeclass
     | Instance Text Text -- ^ query for some instance
     | TypeSignature () -- TODO: implement
@@ -41,9 +41,12 @@ instance AST HaskellAST where
         | Range (Query HaskellAST) (Query HaskellAST)
         deriving (Show, Eq)
     match = haskellMatchAST
-    parsers = Parsers -- TODO: HNames
-        { elements = [ typeParser (DName . TypeName)
-                     -- TODO: type families
+    parsers = Parsers
+        { elements = [ elementParser "m." (HName . MName)
+                     , elementParser "e." (HName . EName)
+                     , elementParser "i." (HName . IName)
+                     , typeParser (DName . TypeName)
+                     , elementParser "|" (DName . FamilyName)
                      , classParser (DName . ClassName)
                      , instanceParser (\a b -> DName (Instance a b))
                      -- TODO: type sigs
@@ -60,11 +63,11 @@ haskellMatchAST ast (DName dQuery) = matchDQuery ast dQuery
 -- | match a query on an AST's head
 matchHQuery :: HaskellAST -> HQuery -> Maybe HaskellAST
 matchHQuery ast (MName queryName)
-    | Just (H.ModuleHead _ (H.ModuleName _ name) _ _) <- moduleHead ast
+    | Just (ModuleHead _ (ModuleName _ name) _ _) <- moduleHead ast
     , pack name == queryName = Just ast
     | otherwise = Nothing
 matchHQuery ast (EName queryExport)
-    | Just (H.ModuleHead _ _ _ (Just exports)) <- moduleHead ast
+    | Just (ModuleHead _ _ _ (Just exports)) <- moduleHead ast
     , Just dquery <- findName exports = matchDQuery ast dquery
     | otherwise = Nothing
     where findName (ExportSpecList _ exportList) = foldr go Nothing exportList

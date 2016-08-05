@@ -8,19 +8,19 @@ import Data.Text (Text)
 
 -- | a value identifier element
 valueParser :: AST a => (Text -> Query a) -> Parser (Query a)
-valueParser = elementParser '.'
+valueParser = elementParser "."
 
 -- | a type identifier element
 typeParser :: AST a => (Text -> Query a) -> Parser (Query a)
-typeParser = elementParser ':'
+typeParser = elementParser ":"
 
 -- | a class identifier element
 classParser :: AST a => (Text -> Query a) -> Parser (Query a)
-classParser = elementParser ','
+classParser = elementParser ","
 
 -- | a class/interface instance
 instanceParser :: AST a => (Text -> Text -> Query a) -> Parser (Query a)
-instanceParser = element2Parser ';'
+instanceParser = element2Parser ";"
 
 -- | a line number element
 lineNumParser :: AST a => (Integer -> Query a) -> Parser (Query a)

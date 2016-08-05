@@ -29,19 +29,19 @@ data Parsers a = Parsers
 -- | generate a parser for an atomic query for a named object, for instance
 -- a type, class or value.
 elementParser :: AST a
-              => Char
+              => Text
               -> (Text -> Query a)
               -> Parser (Query a)
-elementParser c cons = char c *> (cons <$> name)
+elementParser c cons = string c *> (cons <$> name)
     where name = takeWhile1 (`notElem` (" ()" :: String))
 
 -- | generate a parser for an atomic query for a named object with a name
 -- consisting of two parts.
 element2Parser :: AST a
-               => Char
+               => Text
                -> (Text -> Text -> Query a)
                -> Parser (Query a)
-element2Parser c cons = char c *> (cons <$> name <*> (char c *> name))
+element2Parser c cons = string c *> (cons <$> name <*> (string c *> name))
     where name = takeWhile1 (`notElem` (" ()" :: String))
 
 -- | combinator to allow for chaining two parsers together with an infix
