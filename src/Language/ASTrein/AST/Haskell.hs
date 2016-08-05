@@ -140,9 +140,9 @@ matchDQuery' (TypeSignature ()) tDecl
     | TypeSig _ _ _ <- tDecl = Nothing -- TODO: implement
     | otherwise = Nothing
 matchDQuery' (FuncName queryName) tDecl
-    | FunBind _ ((Match _ fName _ _ _):_) <- tDecl
+    | FunBind _ (Match _ fName _ _ _:_) <- tDecl
     , getName fName == queryName = Just tDecl
-    | FunBind _ ((InfixMatch _ _ fName _ _ _):_) <- tDecl
+    | FunBind _ (InfixMatch _ _ fName _ _ _:_) <- tDecl
     , getName fName == queryName = Just tDecl
     | ForImp _ _ _ _ fName _ <- tDecl
     , getName fName == queryName = Just tDecl
