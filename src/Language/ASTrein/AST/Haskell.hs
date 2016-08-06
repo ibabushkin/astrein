@@ -130,12 +130,26 @@ matchDQuery' (ClassName queryName) tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
     | otherwise = Nothing
 matchDQuery' (Instance queryClass queryName) tDecl
-    | TypeInsDecl _ _ _ <- tDecl = Nothing -- TODO: implement
-    | DataInsDecl _ _ _ _ _ <- tDecl = Nothing -- TODO: implement
-    | GDataInsDecl _ _ _ _ _ _ <- tDecl = Nothing -- TODO: implement
-    | InstDecl _ _ _ _ <- tDecl = Nothing -- TODO: implement
-    | DerivDecl _ _ _ <- tDecl = Nothing -- TODO: implement
+    | TypeInsDecl _ (TyApp _ fType iType) _ <- tDecl
+    , Just fName <- getTypeName fType, Just iName <- getTypeName iType
+    , fName == queryClass && iName == queryName = Just tDecl
+    | DataInsDecl _ _ (TyApp _ fType iType) _ _ <- tDecl
+    , Just fName <- getTypeName fType, Just iName <- getTypeName iType
+    , fName == queryClass && iName == queryName = Just tDecl
+    | GDataInsDecl _ _ (TyApp _ fType iType) _ _ _ <- tDecl
+    , Just fName <- getTypeName fType, Just iName <- getTypeName iType
+    , fName == queryClass && iName == queryName = Just tDecl
+    | InstDecl _ _ iRule _ <- tDecl, Just (qn, t) <- matchIRule iRule
+    , qn == queryClass && t == queryName = Just tDecl
+    | DerivDecl _ _ iRule <- tDecl, Just (qn, t) <- matchIRule iRule
+    , qn == queryClass && t == queryName = Just tDecl
     | otherwise = Nothing
+    where matchIRule (IParen _ iRule) = matchIRule iRule
+          matchIRule (IRule _ _ _ iHead) = matchIHead iHead
+          matchIHead (IHParen _ iHead) = matchIHead iHead
+          matchIHead (IHApp _ (IHCon _ qn) t) =
+              (,) <$> getQName qn <*> getTypeName t
+          matchIHead _ = Nothing
 matchDQuery' (TypeSignature ()) tDecl
     | TypeSig _ _ _ <- tDecl = Nothing -- TODO: implement
     | otherwise = Nothing
@@ -148,12 +162,14 @@ matchDQuery' (FuncName queryName) tDecl
     , getName fName == queryName = Just tDecl
     | otherwise = Nothing
 
--- | get a textual representation of a declaration head's name
-getDeclHeadName :: DeclHead SrcSpanInfo -> Text
-getDeclHeadName (DHead _ tName) = getName tName
-getDeclHeadName (DHInfix _ _ tName) = getName tName
-getDeclHeadName (DHParen _ tHead) = getDeclHeadName tHead
-getDeclHeadName (DHApp _ tHead _) = getDeclHeadName tHead
+-- | get a textual representation of a module name
+getModuleName :: ModuleName a -> Text
+getModuleName (ModuleName _ name) = pack name
+
+-- | get a textual representation of a name
+getName :: Name a -> Text
+getName (Ident _ name) = pack name -- TODO: find differences between the cases
+getName (Symbol _ name) = pack name
 
 -- | get a textual representation of a (possibly qualified name)
 getQName :: QName a -> Maybe Text
@@ -162,11 +178,21 @@ getQName (Qual _ mName name) =
     Just $ getModuleName mName <> "." <> getName name
 getQName _ = Nothing
 
--- | get a textual representation of a name
-getName :: Name a -> Text
-getName (Ident _ name) = pack name -- TODO: find differences between the cases
-getName (Symbol _ name) = pack name
+-- | get a textual representation of a declaration head's name
+getDeclHeadName :: DeclHead a -> Text
+getDeclHeadName (DHead _ tName) = getName tName
+getDeclHeadName (DHInfix _ _ tName) = getName tName
+getDeclHeadName (DHParen _ tHead) = getDeclHeadName tHead
+getDeclHeadName (DHApp _ tHead _) = getDeclHeadName tHead
 
--- | get a textual representation of a module name
-getModuleName :: ModuleName a -> Text
-getModuleName (ModuleName _ name) = pack name
+-- | get a textual representation of a type's name
+-- TODO: maybe we should return a result for everything?
+getTypeName :: Type a -> Maybe Text
+getTypeName (TyForall _ _ _ t) = getTypeName t
+getTypeName (TyApp _ t _) = getTypeName t
+getTypeName (TyCon _ qn) = getQName qn
+getTypeName (TyParen _ t) = getTypeName t
+getTypeName (TyInfix _ _ qn _) = getQName qn
+getTypeName (TyKind _ t _) = getTypeName t
+getTypeName (TyBang _ _ _ t) = getTypeName t
+getTypeName _ = Nothing
