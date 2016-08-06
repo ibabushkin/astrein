@@ -31,7 +31,6 @@ data DQuery
     | FamilyName Text -- ^ query for a type- or data family
     | ClassName Text -- ^ query for a typeclass
     | Instance Text Text -- ^ query for some instance
-    | TypeSignature () -- TODO: implement
     | FuncName Text -- ^ query for a function
     deriving (Show, Eq)
 
@@ -56,7 +55,6 @@ instance AST HaskellAST where
             , elementParser "|" (DName . FamilyName)
             , classParser (DName . ClassName)
             , instanceParser (\a b -> DName (Instance a b))
-            -- TODO: type sigs
             , valueParser (DName . FuncName)
             ]
         , chains = [ chainingParser " - " Range ]
@@ -150,9 +148,6 @@ matchDQuery' (Instance queryClass queryName) tDecl
           matchIHead (IHApp _ (IHCon _ qn) t) =
               (,) <$> getQName qn <*> getTypeName t
           matchIHead _ = Nothing
-matchDQuery' (TypeSignature ()) tDecl
-    | TypeSig _ _ _ <- tDecl = Nothing -- TODO: implement
-    | otherwise = Nothing
 matchDQuery' (FuncName queryName) tDecl
     | FunBind _ (Match _ fName _ _ _:_) <- tDecl
     , getName fName == queryName = Just tDecl
