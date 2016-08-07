@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, FlexibleContexts #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleContexts, RecordWildCards #-}
 import Data.Char (toLower)
 import Data.Text (Text, pack)
 
@@ -18,15 +18,15 @@ options :: [OptDescr (Options -> Options)]
 options =
     [ Option "l" ["language"]
         (ReqArg
-            (\str opt ->
+            (\str Options{..} ->
                 case map toLower str of
                   "haskell" -> Options
                       { func = runHaskell
-                      , query = query opt
+                      , query = query
                       }
                   "simple" -> Options
                       { func = runSimple
-                      , query = query opt
+                      , query = query
                       })
             "LANGUAGE")
         "The language to use. Possible values are\n\

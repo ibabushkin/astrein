@@ -70,7 +70,7 @@ haskellMatchAST HaskellAST{ decls = decls } (Range (DName q1) (DName q2))
     | DeclMatch xs@(x:_) <- matchDQuery decls q1
     , Just decls' <- stripPrefix xs (dropWhile (/= x) decls)
     , DeclMatch ys <- matchDQuery decls' q2 =
-        DeclMatch . takeWhile (/= (last ys)) $ dropWhile (/= x) decls
+        DeclMatch . takeWhile (/= last ys) $ dropWhile (/= x) decls
     | otherwise = NoMatch
 
 -- | match a query on an AST's head
