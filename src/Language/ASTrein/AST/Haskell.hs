@@ -46,6 +46,7 @@ instance AST HaskellAST where
         | ImportMatch [ImportDecl SrcSpanInfo]
         | DeclMatch [Decl SrcSpanInfo]
         | NoMatch
+        deriving (Show, Eq)
     match = haskellMatchAST
     parsers = Parsers
         { elements =
@@ -198,3 +199,6 @@ getTypeName (TyInfix _ _ qn _) = getQName qn
 getTypeName (TyKind _ t _) = getTypeName t
 getTypeName (TyBang _ _ _ t) = getTypeName t
 getTypeName _ = Nothing
+
+runHaskell :: FilePath -> Text -> IO (QueryResult HaskellAST)
+runHaskell = undefined

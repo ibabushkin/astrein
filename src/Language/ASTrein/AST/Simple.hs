@@ -34,6 +34,7 @@ instance AST SimpleAST where
         deriving (Show, Eq)
     -- | the associated query result type
     data QueryResult SimpleAST = Match
+        deriving (Show, Eq)
     -- | every query matches for obvious reasons
     match _ _ = Match
     -- | all our parsers
@@ -46,3 +47,6 @@ instance AST SimpleAST where
                    , chainingParser " - " Range
                    ]
         }
+
+runSimple :: FilePath -> Text -> IO (QueryResult SimpleAST)
+runSimple = undefined
