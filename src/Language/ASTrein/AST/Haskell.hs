@@ -46,7 +46,7 @@ instance AST HaskellAST where
         | ImportMatch [ImportDecl SrcSpanInfo]
         | DeclMatch [Decl SrcSpanInfo]
         | NoMatch
-    match = undefined
+    match = haskellMatchAST
     parsers = Parsers
         { elements =
             [ elementParser "m." (HName . MName)
