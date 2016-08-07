@@ -6,6 +6,7 @@ import Language.ASTrein.AST
 import Language.ASTrein.AST.Template
 import Language.Haskell.Exts
 
+import Data.List (stripPrefix)
 import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>))
 import Data.Text (Text, pack)
@@ -64,6 +65,12 @@ instance AST HaskellAST where
 haskellMatchAST :: HaskellAST -> Query HaskellAST -> QueryResult HaskellAST
 haskellMatchAST ast (HName hQuery) = matchHQuery ast hQuery
 haskellMatchAST ast (DName dQuery) = matchDQuery (decls ast) dQuery
+haskellMatchAST HaskellAST{ decls = decls } (Range (DName q1) (DName q2))
+    | DeclMatch xs@(x:_) <- matchDQuery decls q1
+    , Just decls' <- stripPrefix xs (dropWhile (/= x) decls)
+    , DeclMatch ys <- matchDQuery decls' q2 =
+        DeclMatch . takeWhile (/= (last ys)) $ dropWhile (/= x) decls
+    | otherwise = NoMatch
 
 -- | match a query on an AST's head
 matchHQuery :: HaskellAST -> HQuery -> QueryResult HaskellAST
