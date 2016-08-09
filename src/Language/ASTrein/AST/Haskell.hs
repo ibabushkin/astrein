@@ -47,6 +47,7 @@ instance AST HaskellAST where
         | DeclMatch [Decl SrcSpanInfo]
         | NoMatch
         deriving (Show, Eq)
+    parseAST = parseHaskellAST
     match = haskellMatchAST
     parsers = Parsers
         { elements =
@@ -62,11 +63,19 @@ instance AST HaskellAST where
         , chains = [ chainingParser " - " Range ]
         }
 
+parseHaskellAST :: FilePath -> IO (Maybe HaskellAST)
+parseHaskellAST file = do
+    res <- parseFile file
+    case res of
+      ParseOk (Module _ mHead mPragmas imports decls) ->
+          return . Just $ HaskellAST mHead mPragmas imports decls
+      ParseFailed _ _ -> return Nothing
+
 -- | match a query on an AST
-haskellMatchAST :: HaskellAST -> Query HaskellAST -> QueryResult HaskellAST
-haskellMatchAST ast (HName hQuery) = matchHQuery ast hQuery
-haskellMatchAST ast (DName dQuery) = matchDQuery (decls ast) dQuery
-haskellMatchAST HaskellAST{ decls = decls } (Range (DName q1) (DName q2))
+haskellMatchAST :: Query HaskellAST -> HaskellAST -> QueryResult HaskellAST
+haskellMatchAST (HName hQuery) ast = matchHQuery ast hQuery
+haskellMatchAST (DName dQuery) ast = matchDQuery (decls ast) dQuery
+haskellMatchAST (Range (DName q1) (DName q2)) HaskellAST{ decls = decls } 
     | DeclMatch xs@(x:_) <- matchDQuery decls q1
     , Just decls' <- stripPrefix xs (dropWhile (/= x) decls)
     , DeclMatch ys <- matchDQuery decls' q2 =
@@ -199,6 +208,3 @@ getTypeName (TyInfix _ _ qn _) = getQName qn
 getTypeName (TyKind _ t _) = getTypeName t
 getTypeName (TyBang _ _ _ t) = getTypeName t
 getTypeName _ = Nothing
-
-runHaskell :: FilePath -> Text -> IO (QueryResult HaskellAST)
-runHaskell = undefined

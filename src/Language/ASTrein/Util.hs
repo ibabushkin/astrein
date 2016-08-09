@@ -1,7 +1,10 @@
-module Language.ASTrein.Util (readMaybe) where
+module Language.ASTrein.Util (readMaybe, readMaybeStr) where
 
 import Data.Maybe (listToMaybe)
 import Data.Text (Text, unpack)
 
 readMaybe :: Read a => Text -> Maybe a
-readMaybe = fmap fst . listToMaybe . reads . unpack
+readMaybe = readMaybeStr . unpack
+
+readMaybeStr :: Read a => String -> Maybe a
+readMaybeStr = fmap fst . listToMaybe . reads

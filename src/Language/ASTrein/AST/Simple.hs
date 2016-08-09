@@ -36,6 +36,7 @@ instance AST SimpleAST where
     data QueryResult SimpleAST = Match
         deriving (Show, Eq)
     -- | every query matches for obvious reasons
+    parseAST _ = return . Just . SimpleAST $ ()
     match _ _ = Match
     -- | all our parsers
     parsers = Parsers
@@ -48,5 +49,5 @@ instance AST SimpleAST where
                    ]
         }
 
-runSimple :: FilePath -> Text -> IO (QueryResult SimpleAST)
-runSimple = undefined
+runSimple :: Query SimpleAST -> FilePath -> IO (QueryResult SimpleAST)
+runSimple _ _ = return Match

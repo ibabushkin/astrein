@@ -3,7 +3,7 @@ module Language.ASTrein.AST where
 
 import Control.Applicative ((<|>))
 
-import Data.Attoparsec.Text
+import Data.Attoparsec.Text hiding (match)
 import Data.Text (Text)
 
 -- | a typeclass associating a type for a language-specific AST with
@@ -13,14 +13,22 @@ class AST a where
     data Query a :: *
     -- | query result type
     data QueryResult a :: *
+    -- | parse a file into an AST
+    parseAST :: FilePath -> IO (Maybe a)
     -- | apply query to an AST
-    match :: a -> Query a -> QueryResult a
+    match :: Query a -> a -> QueryResult a
     -- | all parsers needed to parse a `Text` into a `Query a`
     parsers :: Parsers a
 
 -- | parse a query from text
 parseQuery :: AST a => Text -> Maybe (Query a)
 parseQuery = either (const Nothing) Just . parseOnly toplevelParser
+
+matchQuery :: AST a => Text -> FilePath -> IO (Maybe (QueryResult a))
+matchQuery queryText file
+    | Just query <- parseQuery queryText =
+        (fmap (match query)) <$> parseAST file
+    | otherwise = return Nothing
 
 -- | a collection type for all elementar and derived parsers for a Query type
 data Parsers a = Parsers
