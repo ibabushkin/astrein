@@ -10,16 +10,19 @@ import Language.ASTrein.Util (readMaybeStr)
 import System.Console.GetOpt
 import System.Environment (getArgs)
 
+-- | supported languages type
 data Language
     = Haskell
     | Simple
     deriving (Read, Eq)
 
+-- | command line flag type
 data Options = Options
     { language :: Language
     , query :: Text
     }
 
+-- | command line options parsing specification
 options :: [OptDescr (Options -> Options)]
 options =
     [ Option "l" ["language"]
@@ -37,15 +40,18 @@ options =
         "The expression describing the query to be applied to the file(s).\n"
     ]
 
+-- | default options
 defaultOptions :: Options
 defaultOptions = Options Haskell mempty
 
+-- | dispatch language to determine computation necessary
 dispatch :: Language -> Text -> [FilePath] -> IO [String]
 dispatch Haskell queryText files = map show <$>
     (perform queryText files :: IO [Maybe (QueryResult HaskellAST)])
 dispatch Simple queryText files = map show <$>
     (perform queryText files :: IO [Maybe (QueryResult SimpleAST)])
 
+-- | main routine
 main :: IO ()
 main = do
     args <- getArgs
