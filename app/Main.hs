@@ -4,7 +4,7 @@ import Data.Text (Text, pack)
 
 import Language.ASTrein.AST
 import Language.ASTrein.AST.Haskell (HaskellAST)
-import Language.ASTrein.AST.Simple (runSimple)
+import Language.ASTrein.AST.Simple (SimpleAST)
 import Language.ASTrein.Util (readMaybeStr)
 
 import System.Console.GetOpt
@@ -40,9 +40,15 @@ options =
 defaultOptions :: Options
 defaultOptions = Options Haskell mempty
 
+dispatch :: Language -> Text -> [FilePath] -> IO [String]
+dispatch Haskell queryText files = map show <$>
+    (perform queryText files :: IO [Maybe (QueryResult HaskellAST)])
+dispatch Simple queryText files = map show <$>
+    (perform queryText files :: IO [Maybe (QueryResult SimpleAST)])
+
 main :: IO ()
 main = do
     args <- getArgs
     let (actions, files, _) = getOpt RequireOrder options args
     let Options{..} = foldl (flip ($)) defaultOptions actions
-    return ()
+    mapM_ putStrLn =<< dispatch language query files

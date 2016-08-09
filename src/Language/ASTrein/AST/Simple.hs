@@ -48,6 +48,3 @@ instance AST SimpleAST where
                    , chainingParser " - " Range
                    ]
         }
-
-runSimple :: Query SimpleAST -> FilePath -> IO (QueryResult SimpleAST)
-runSimple _ _ = return Match
