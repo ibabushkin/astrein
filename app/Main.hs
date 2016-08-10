@@ -8,7 +8,9 @@ import Language.ASTrein.AST.Simple (SimpleAST)
 import Language.ASTrein.Util (readMaybeStr)
 
 import System.Console.GetOpt
-import System.Environment (getArgs)
+import System.Environment (getArgs, getProgName)
+import System.Exit (exitSuccess)
+import System.IO (hPutStrLn, stderr)
 
 -- | supported languages type
 data Language
@@ -19,30 +21,42 @@ data Language
 -- | command line flag type
 data Options = Options
     { language :: Language
-    , query :: Text
+    , query :: Maybe Text
     }
 
 -- | command line options parsing specification
-options :: [OptDescr (Options -> Options)]
+options :: [OptDescr (Options -> IO Options)]
 options =
     [ Option "l" ["language"]
         (ReqArg
             (\str opts ->
                 case readMaybeStr str of
-                  Just lang -> opts { language = lang }
-                  Nothing -> opts
+                  Just lang -> return opts { language = lang }
+                  Nothing -> do
+                      hPutStrLn stderr
+                          "error: language not recognized, using default"
+                      return opts
             )
             "LANGUAGE")
         "The language to use. Possible values are\n\
         \'Haskell' and 'Simple'. Default: 'Haskell'"
-    , Option "qp" ["query", "pattern"]
-        (ReqArg (\str opt -> opt { query = pack str }) "QUERY")
-        "The expression describing the query to be applied to the file(s).\n"
+    , Option "q" ["query"]
+        (ReqArg (\str opt -> return opt { query = Just (pack str) }) "QUERY")
+        "The expression describing the query to be\n applied to the file(s).\n"
+    , Option "h" ["help"]
+        (NoArg
+            (\_ -> do
+                prg <- getProgName
+                let header = prg ++ " version 0.4\nUSAGE: " ++
+                        prg ++ " [OPTION..] file(s)\nOPTIONS:" 
+                hPutStrLn stderr (usageInfo header options)
+                exitSuccess))
+        "Show this help."
     ]
 
 -- | default options
 defaultOptions :: Options
-defaultOptions = Options Haskell mempty
+defaultOptions = Options Haskell Nothing
 
 -- | a type for easier dispatching of actions
 type ActionResult a = IO [Maybe (QueryResult a)]
@@ -62,5 +76,7 @@ main :: IO ()
 main = do
     args <- getArgs
     let (actions, files, _) = getOpt RequireOrder options args
-    let Options{..} = foldl (flip ($)) defaultOptions actions
-    mapM_ putStrLn =<< dispatch language query files
+    Options{..} <- foldl (>>=) (return defaultOptions) actions
+    case query of
+      Just q -> mapM_ putStrLn =<< dispatch language q files
+      Nothing -> hPutStrLn stderr "error: no query specified, aborting"
