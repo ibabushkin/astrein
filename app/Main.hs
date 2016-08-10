@@ -44,12 +44,18 @@ options =
 defaultOptions :: Options
 defaultOptions = Options Haskell mempty
 
+-- | a type for easier dispatching of actions
+type ActionResult a = IO [Maybe (QueryResult a)]
+
 -- | dispatch language to determine computation necessary
 dispatch :: Language -> Text -> [FilePath] -> IO [String]
-dispatch Haskell queryText files = map show <$>
-    (perform queryText files :: IO [Maybe (QueryResult HaskellAST)])
-dispatch Simple queryText files = map show <$>
-    (perform queryText files :: IO [Maybe (QueryResult SimpleAST)])
+dispatch lang queryText files =
+    case lang of
+      Haskell -> map show <$> (result :: ActionResult HaskellAST)
+      Simple -> map show <$> (result :: ActionResult SimpleAST)
+      where result :: (AST a, Show (QueryResult a))
+                   => IO [Maybe (QueryResult a)]
+            result = perform queryText files
 
 -- | main routine
 main :: IO ()
