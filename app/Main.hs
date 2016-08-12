@@ -59,17 +59,24 @@ defaultOptions :: Options
 defaultOptions = Options Haskell Nothing
 
 -- | a type for easier dispatching of actions
-type ActionResult a = IO [Maybe (QueryResult a)]
+type ActionResult a = IO (Maybe [Maybe (QueryResult a)])
 
 -- | dispatch language to determine computation necessary
 dispatch :: Language -> Text -> [FilePath] -> IO [String]
 dispatch lang queryText files =
     case lang of
-      Haskell -> map show <$> (result :: ActionResult HaskellAST)
-      Simple -> map show <$> (result :: ActionResult SimpleAST)
-      where result :: (AST a, Show (QueryResult a))
-                   => IO [Maybe (QueryResult a)]
-            result = perform queryText files
+      Haskell -> show' (result :: ActionResult HaskellAST)
+      Simple -> show' (result :: ActionResult SimpleAST)
+    where result :: (AST a, Show (QueryResult a)) => ActionResult a
+          result = perform queryText files
+          show' res = do
+              r <- res
+              case r of
+                Just a -> return $ map show a
+                Nothing -> do
+                    hPutStrLn stderr "error: query parsing failed"
+                    exitSuccess
+                    return []
 
 -- | main routine
 main :: IO ()

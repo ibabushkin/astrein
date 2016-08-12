@@ -25,12 +25,12 @@ parseQuery :: AST a => Text -> Maybe (Query a)
 parseQuery = either (const Nothing) Just . parseOnly toplevelParser
 
 -- | match a query in textual represenation on an AST taken from a file
-perform :: AST a => Text -> [FilePath] -> IO [Maybe (QueryResult a)]
+perform :: AST a => Text -> [FilePath] -> IO (Maybe [Maybe (QueryResult a)])
 perform queryText files
     | Just query <- parseQuery queryText = do
         files <- mapM parseAST files
-        return $ map (fmap (match query)) files
-    | otherwise = return []
+        return . Just $ map (fmap (match query)) files
+    | otherwise = return Nothing
 
 -- | a collection type for all elementar and derived parsers for a Query type
 data Parsers a = Parsers
