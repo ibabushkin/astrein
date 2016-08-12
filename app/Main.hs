@@ -9,7 +9,7 @@ import Language.ASTrein.Util (readMaybeStr)
 
 import System.Console.GetOpt
 import System.Environment (getArgs, getProgName)
-import System.Exit (exitSuccess)
+import System.Exit (exitSuccess, exitFailure)
 import System.IO (hPutStrLn, stderr)
 
 -- | supported languages type
@@ -34,7 +34,7 @@ options =
                   Just lang -> return opts { language = lang }
                   Nothing -> do
                       hPutStrLn stderr
-                          "error: language not recognized, using default"
+                          "warning: language not recognized, using default"
                       return opts
             )
             "LANGUAGE")
@@ -75,7 +75,7 @@ dispatch lang queryText files =
                 Just a -> return $ map show a
                 Nothing -> do
                     hPutStrLn stderr "error: query parsing failed"
-                    exitSuccess
+                    exitFailure
                     return []
 
 -- | main routine
@@ -86,4 +86,6 @@ main = do
     Options{..} <- foldl (>>=) (return defaultOptions) actions
     case query of
       Just q -> mapM_ putStrLn =<< dispatch language q files
-      Nothing -> hPutStrLn stderr "error: no query specified, aborting"
+      Nothing -> do
+          hPutStrLn stderr "error: no query specified, aborting"
+          exitFailure
