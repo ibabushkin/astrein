@@ -21,6 +21,7 @@ data Language
 -- | command line flag type
 data Options = Options
     { language :: Language
+    , nomatch :: Bool
     , query :: Maybe Text
     }
 
@@ -43,6 +44,9 @@ options =
     , Option "q" ["query"]
         (ReqArg (\str opt -> return opt { query = Just (pack str) }) "QUERY")
         "The expression describing the query to be\n applied to the file(s).\n"
+    , Option "n" ["nomatch"]
+        (NoArg (\opts -> return opts { nomatch = True }))
+        "Don't match the query, only parse the AST"
     , Option "h" ["help"]
         (NoArg
             (\_ -> do
@@ -56,12 +60,12 @@ options =
 
 -- | default options
 defaultOptions :: Options
-defaultOptions = Options Haskell Nothing
+defaultOptions = Options Haskell False Nothing
 
 -- | a type for easier dispatching of actions
 type ActionResult a = IO (Maybe [Maybe (QueryResult a)])
 
--- | dispatch language to determine computation necessary
+-- | dispatch language to determine the computation necessary
 dispatch :: Language -> Text -> [FilePath] -> IO [String]
 dispatch lang queryText files =
     case lang of
@@ -78,14 +82,30 @@ dispatch lang queryText files =
                     exitFailure
                     return []
 
+-- | dispatch a language to parse the files to ASTs and display them
+dispatchAST :: Language -> [FilePath] -> IO [String]
+dispatchAST lang files =
+    case lang of
+      Haskell -> (asts :: IO [Maybe HaskellAST]) >>= mapM show'
+      Simple -> (asts :: IO [Maybe SimpleAST]) >>= mapM show'
+    where asts :: AST a => IO [Maybe a]
+          asts = mapM parseAST files
+          show' r = case r of
+                      Just a -> return $ show a
+                      Nothing -> do
+                          hPutStrLn stderr "error: AST parsing failed"
+                          return []
+
 -- | main routine
 main :: IO ()
 main = do
     args <- getArgs
     let (actions, files, _) = getOpt RequireOrder options args
     Options{..} <- foldl (>>=) (return defaultOptions) actions
-    case query of
-      Just q -> mapM_ putStrLn =<< dispatch language q files
-      Nothing -> do
-          hPutStrLn stderr "error: no query specified, aborting"
-          exitFailure
+    if nomatch
+       then mapM_ putStrLn =<< dispatchAST language files
+       else case query of
+              Just q -> mapM_ putStrLn =<< dispatch language q files
+              Nothing -> do
+                  hPutStrLn stderr "error: no query specified, aborting"
+                  exitFailure

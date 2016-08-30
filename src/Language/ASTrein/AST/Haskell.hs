@@ -172,6 +172,8 @@ matchDQuery' (FuncName queryName) tDecl
     , getName fName == queryName = Just tDecl
     | ForImp _ _ _ _ fName _ <- tDecl
     , getName fName == queryName = Just tDecl
+    | PatBind _ (PVar _ fName) _ _ <- tDecl
+    , getName fName == queryName = Just tDecl
     | otherwise = Nothing
 
 -- | get a textual representation of a module name
