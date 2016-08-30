@@ -17,6 +17,8 @@ class AST a where
     parseAST :: FilePath -> IO (Maybe a)
     -- | apply query to an AST
     match :: Query a -> a -> QueryResult a
+    -- | render a query's result
+    render :: QueryResult a -> IO Text
     -- | all parsers needed to parse a `Text` into a `Query a`
     parsers :: Parsers a
 
@@ -25,6 +27,8 @@ parseQuery :: AST a => Text -> Maybe (Query a)
 parseQuery = either (const Nothing) Just . parseOnly toplevelParser
 
 -- | match a query in textual represenation on an AST taken from a file
+-- returns a wraped Nothing on query parsing failure and a Nothing in the list
+-- for each file that could not be parsed to an AST.
 perform :: AST a => Text -> [FilePath] -> IO (Maybe [Maybe (QueryResult a)])
 perform queryText files
     | Just query <- parseQuery queryText = do

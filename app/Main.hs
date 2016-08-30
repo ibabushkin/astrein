@@ -26,6 +26,13 @@ data Options = Options
     , query :: Maybe Text
     }
 
+showError :: String -> IO ()
+showError = hPutStrLn stderr
+
+-- | crash with a message
+crash :: String -> IO a
+crash msg = showError msg >> exitFailure
+
 -- | command line options parsing specification
 options :: [OptDescr (Options -> IO Options)]
 options =
@@ -72,16 +79,17 @@ dispatch lang queryText files =
     case lang of
       Haskell -> show' (result :: ActionResult HaskellAST)
       Simple -> show' (result :: ActionResult SimpleAST)
-    where result :: (AST a, Show (QueryResult a)) => ActionResult a
+    where result :: AST a => ActionResult a
           result = perform queryText files
           show' res = do
               r <- res
               case r of
-                Just a -> return $ map (pack . show) a
-                Nothing -> do
-                    hPutStrLn stderr "error: query parsing failed"
-                    exitFailure
-                    return []
+                Just a -> mapM render' a
+                Nothing -> crash "error: query parsing failed"
+          render' :: AST a => Maybe (QueryResult a) -> IO Text
+          render' (Just r) = render r
+          render' Nothing =
+              showError "error: AST could not be parsed" >> return mempty
 
 -- | dispatch a language to parse the files to ASTs and display them
 dispatchAST :: Language -> [FilePath] -> IO [Text]
@@ -93,9 +101,7 @@ dispatchAST lang files =
           asts = mapM parseAST files
           show' r = case r of
                       Just a -> return . pack $ show a
-                      Nothing -> do
-                          hPutStrLn stderr "error: AST parsing failed"
-                          return mempty
+                      Nothing -> crash "error: AST parsing failed"
 
 -- | main routine
 main :: IO ()
@@ -106,7 +112,5 @@ main = do
     if nomatch
        then mapM_ TIO.putStrLn =<< dispatchAST language files
        else case query of
-              Just q -> mapM_ TIO.putStrLn =<< dispatch language q files
-              Nothing -> do
-                  hPutStrLn stderr "error: no query specified, aborting"
-                  exitFailure
+              Just q -> mapM_ TIO.putStr =<< dispatch language q files
+              Nothing -> crash "error: no query specified, aborting"

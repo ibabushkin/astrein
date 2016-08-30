@@ -10,6 +10,8 @@ import Data.List (stripPrefix)
 import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>))
 import Data.Text (Text, pack)
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
 -- | a Haskell AST
 data HaskellAST = HaskellAST
@@ -49,6 +51,7 @@ instance AST HaskellAST where
         deriving (Show, Eq)
     parseAST = parseHaskellAST
     match = haskellMatchAST
+    render = haskellRender
     parsers = Parsers
         { elements =
             [ elementParser "m." (HName . MName)
@@ -75,7 +78,7 @@ parseHaskellAST file = do
 haskellMatchAST :: Query HaskellAST -> HaskellAST -> QueryResult HaskellAST
 haskellMatchAST (HName hQuery) ast = matchHQuery ast hQuery
 haskellMatchAST (DName dQuery) ast = matchDQuery (decls ast) dQuery
-haskellMatchAST (Range (DName q1) (DName q2)) HaskellAST{ decls = decls } 
+haskellMatchAST (Range (DName q1) (DName q2)) HaskellAST{ decls = decls }
     | DeclMatch xs@(x:_) <- matchDQuery decls q1
     , Just decls' <- stripPrefix xs (dropWhile (/= x) decls)
     , DeclMatch ys <- matchDQuery decls' q2 =
@@ -174,6 +177,8 @@ matchDQuery' (FuncName queryName) tDecl
     , getName fName == queryName = Just tDecl
     | PatBind _ (PVar _ fName) _ _ <- tDecl
     , getName fName == queryName = Just tDecl
+    | TypeSig _ fNames _ <- tDecl
+    , queryName `elem` map getName fNames = Just tDecl
     | otherwise = Nothing
 
 -- | get a textual representation of a module name
@@ -210,3 +215,57 @@ getTypeName (TyInfix _ _ qn _) = getQName qn
 getTypeName (TyKind _ t _) = getTypeName t
 getTypeName (TyBang _ _ _ t) = getTypeName t
 getTypeName _ = Nothing
+
+haskellRender :: QueryResult HaskellAST -> IO Text
+haskellRender ModuleNameMatch = return "module name matched."
+haskellRender (ImportMatch ids) = do
+    decls <- mapM renderImportDecl ids
+    return $ "imports matched:\n" <> T.unlines decls
+    where renderImportDecl (ImportDecl s _ _ _ _ _ _ _) = renderSrcSpanInfo s
+haskellRender (DeclMatch ds) = do
+    decls <- mapM renderDecl ds
+    return $ "declarations matched:\n" <> T.intercalate "\n" decls
+    where renderDecl = renderSrcSpanInfo . declToSrcSpanInfo
+haskellRender NoMatch = return "no matches."
+
+renderSrcSpanInfo :: SrcSpanInfo -> IO Text
+renderSrcSpanInfo (SrcSpanInfo (SrcSpan f sl sc el ec) _) =
+    (T.unlines . take (el - sl + 1) . drop (sl - 1) . T.lines) <$>
+        TIO.readFile f
+
+declToSrcSpanInfo :: Decl SrcSpanInfo -> SrcSpanInfo
+declToSrcSpanInfo decl =
+    case decl of
+      TypeDecl s _ _ -> s
+      TypeFamDecl s _ _ _ -> s
+      ClosedTypeFamDecl s _ _ _ _ -> s
+      DataDecl s _ _ _ _ _ -> s
+      GDataDecl s _ _ _ _ _ _ -> s
+      DataFamDecl s _ _ _ -> s
+      TypeInsDecl s _ _ -> s
+      DataInsDecl s _ _ _ _ -> s
+      GDataInsDecl s _ _ _ _ _ -> s
+      ClassDecl s _ _ _ _ -> s
+      InstDecl s _ _ _ -> s
+      DerivDecl s _ _ -> s
+      InfixDecl s _ _ _ -> s
+      DefaultDecl s _ -> s
+      SpliceDecl s _ -> s
+      TypeSig s _ _ -> s
+      PatSynSig s _ _ _ _ _ -> s
+      FunBind s _ -> s
+      PatBind s _ _ _ -> s
+      PatSyn s _ _ _ -> s
+      ForImp s _ _ _ _ _ -> s
+      ForExp s _ _ _ _ -> s
+      RulePragmaDecl s _ -> s
+      DeprPragmaDecl s _ -> s
+      WarnPragmaDecl s _ -> s
+      InlineSig s _ _ _ -> s
+      InlineConlikeSig s _ _ -> s
+      SpecSig s _ _ _ -> s
+      SpecInlineSig s _ _ _ _ -> s
+      InstSig s _ -> s
+      AnnPragma s _ -> s
+      MinimalPragma s _ -> s
+      RoleAnnotDecl s _ _ -> s

@@ -35,9 +35,12 @@ instance AST SimpleAST where
     -- | the associated query result type
     data QueryResult SimpleAST = Match
         deriving (Show, Eq)
-    -- | every query matches for obvious reasons
+    -- | parsing non-existant AST's is surprisingly simple
     parseAST _ = return . Just . SimpleAST $ ()
+    -- | every query matches for obvious reasons
     match _ _ = Match
+    -- | showing trivial matches
+    render _ = return "Trivial Match\n"
     -- | all our parsers
     parsers = Parsers
         { elements = [ valueParser (ValueIdent . ValueName)
