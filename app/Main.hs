@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts, RecordWildCards #-}
 import Data.Char (toLower)
 import Data.Text (Text, pack)
+import qualified Data.Text.IO as TIO
 
 import Language.ASTrein.AST
 import Language.ASTrein.AST.Haskell (HaskellAST)
@@ -66,7 +67,7 @@ defaultOptions = Options Haskell False Nothing
 type ActionResult a = IO (Maybe [Maybe (QueryResult a)])
 
 -- | dispatch language to determine the computation necessary
-dispatch :: Language -> Text -> [FilePath] -> IO [String]
+dispatch :: Language -> Text -> [FilePath] -> IO [Text]
 dispatch lang queryText files =
     case lang of
       Haskell -> show' (result :: ActionResult HaskellAST)
@@ -76,14 +77,14 @@ dispatch lang queryText files =
           show' res = do
               r <- res
               case r of
-                Just a -> return $ map show a
+                Just a -> return $ map (pack . show) a
                 Nothing -> do
                     hPutStrLn stderr "error: query parsing failed"
                     exitFailure
                     return []
 
 -- | dispatch a language to parse the files to ASTs and display them
-dispatchAST :: Language -> [FilePath] -> IO [String]
+dispatchAST :: Language -> [FilePath] -> IO [Text]
 dispatchAST lang files =
     case lang of
       Haskell -> (asts :: IO [Maybe HaskellAST]) >>= mapM show'
@@ -91,10 +92,10 @@ dispatchAST lang files =
     where asts :: AST a => IO [Maybe a]
           asts = mapM parseAST files
           show' r = case r of
-                      Just a -> return $ show a
+                      Just a -> return . pack $ show a
                       Nothing -> do
                           hPutStrLn stderr "error: AST parsing failed"
-                          return []
+                          return mempty
 
 -- | main routine
 main :: IO ()
@@ -103,9 +104,9 @@ main = do
     let (actions, files, _) = getOpt RequireOrder options args
     Options{..} <- foldl (>>=) (return defaultOptions) actions
     if nomatch
-       then mapM_ putStrLn =<< dispatchAST language files
+       then mapM_ TIO.putStrLn =<< dispatchAST language files
        else case query of
-              Just q -> mapM_ putStrLn =<< dispatch language q files
+              Just q -> mapM_ TIO.putStrLn =<< dispatch language q files
               Nothing -> do
                   hPutStrLn stderr "error: no query specified, aborting"
                   exitFailure
