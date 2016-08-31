@@ -15,13 +15,19 @@ class AST a where
     -- | query result type
     data QueryResult a :: *
     -- | parse a file into an AST
-    parseAST :: FilePath -> IO (Maybe a)
+    parseAST' :: FilePath -> IO (Maybe a)
     -- | apply query to an AST
     match :: Query a -> a -> QueryResult a
     -- | render a query's result
     render :: QueryResult a -> IO Text
     -- | all parsers needed to parse a `Text` into a `Query a`
     parsers :: Parsers a
+
+-- | parse an AST and return the filename in case of failure
+parseAST :: AST a => FilePath -> IO (Either String a)
+parseAST file = transform <$> parseAST' file
+    where transform (Just a) = Right a
+          transform Nothing = Left file
 
 -- | parse a query from text
 parseQuery :: AST a => Text -> Maybe (Query a)
@@ -30,7 +36,9 @@ parseQuery = either (const Nothing) Just . parseOnly toplevelParser
 -- | match a query in textual represenation on an AST taken from a file
 -- returns a wraped Nothing on query parsing failure and a Nothing in the list
 -- for each file that could not be parsed to an AST.
-perform :: AST a => Text -> [FilePath] -> IO (Maybe [Maybe (QueryResult a)])
+perform :: AST a
+        => Text -> [FilePath]
+        -> IO (Maybe [Either String (QueryResult a)])
 perform queryText files
     | Just query <- parseQuery queryText = do
         files <- mapM parseAST files

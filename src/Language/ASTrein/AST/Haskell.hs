@@ -49,7 +49,7 @@ instance AST HaskellAST where
         | DeclMatch [Decl SrcSpanInfo]
         | NoMatch
         deriving (Show, Eq)
-    parseAST = parseHaskellAST
+    parseAST' = parseHaskellAST
     match = haskellMatchAST
     render = haskellRender
     parsers = Parsers

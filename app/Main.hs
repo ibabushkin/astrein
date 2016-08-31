@@ -72,38 +72,45 @@ options =
 defaultOptions :: Options
 defaultOptions = Options Haskell False Nothing
 
--- | a type for easier dispatching of actions
-type ActionResult a = IO (Maybe [Maybe (QueryResult a)])
+-- | show a parse error if necessary when dispatching an Either
+parseError :: (a -> IO Text) -> Either String a -> IO Text
+parseError func (Right r) = func r
+parseError func (Left l) = do
+    showError ("error: could not parse " ++ l ++ " to AST.")
+    return mempty
+
+-- | a type for easier dispatching of query results
+type QueryOutput a = IO (Maybe [Either String (QueryResult a)])
+
+-- | a type for easier dispatching of ASTs
+type ASTOutput a = IO [Either String a]
 
 -- | dispatch language to determine the computation necessary
 dispatch :: Language -> Text -> [FilePath] -> IO [Text]
 dispatch lang queryText files =
     case lang of
-      Haskell -> show' (result :: ActionResult HaskellAST)
-      Simple -> show' (result :: ActionResult SimpleAST)
-    where result :: AST a => ActionResult a
+      Haskell -> show' (result :: QueryOutput HaskellAST)
+      Simple -> show' (result :: QueryOutput SimpleAST)
+    where result :: AST a => QueryOutput a
           result = perform queryText files
           show' res = do
               r <- res
               case r of
                 Just a -> mapM render' a
                 Nothing -> crash "error: query parsing failed"
-          render' :: AST a => Maybe (QueryResult a) -> IO Text
-          render' (Just r) = render r
-          render' Nothing =
-              showError "error: AST could not be parsed" >> return mempty
+          render' :: AST a => Either String (QueryResult a) -> IO Text
+          render' = parseError render
 
 -- | dispatch a language to parse the files to ASTs and display them
 dispatchAST :: Language -> [FilePath] -> IO [Text]
 dispatchAST lang files =
     case lang of
-      Haskell -> (asts :: IO [Maybe HaskellAST]) >>= mapM show'
-      Simple -> (asts :: IO [Maybe SimpleAST]) >>= mapM show'
-    where asts :: AST a => IO [Maybe a]
+      Haskell -> (asts :: ASTOutput HaskellAST) >>= mapM show'
+      Simple -> (asts :: ASTOutput SimpleAST) >>= mapM show'
+    where asts :: AST a => IO [Either String a]
           asts = mapM parseAST files
-          show' r = case r of
-                      Just a -> return . pack $ show a
-                      Nothing -> crash "error: AST parsing failed"
+          show' :: Show a => Either String a -> IO Text
+          show' = parseError (return . pack . show)
 
 -- | main routine
 main :: IO ()

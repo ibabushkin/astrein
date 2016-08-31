@@ -36,7 +36,7 @@ instance AST SimpleAST where
     data QueryResult SimpleAST = Match
         deriving (Show, Eq)
     -- | parsing non-existant AST's is surprisingly simple
-    parseAST _ = return . Just . SimpleAST $ ()
+    parseAST' _ = return . Just . SimpleAST $ ()
     -- | every query matches for obvious reasons
     match _ _ = Match
     -- | showing trivial matches
