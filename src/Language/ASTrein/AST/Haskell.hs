@@ -216,6 +216,7 @@ getTypeName (TyKind _ t _) = getTypeName t
 getTypeName (TyBang _ _ _ t) = getTypeName t
 getTypeName _ = Nothing
 
+-- | render a QueryResult
 haskellRender :: QueryResult HaskellAST -> IO Text
 haskellRender ModuleNameMatch = return "module name matched."
 haskellRender (ImportMatch ids) = do
@@ -228,11 +229,13 @@ haskellRender (DeclMatch ds) = do
     where renderDecl = renderSrcSpanInfo . declToSrcSpanInfo
 haskellRender NoMatch = return "no matches."
 
+-- | show a part of a file denoted by a SrcSpanInfo
 renderSrcSpanInfo :: SrcSpanInfo -> IO Text
 renderSrcSpanInfo (SrcSpanInfo (SrcSpan f sl sc el ec) _) =
     (T.unlines . take (el - sl + 1) . drop (sl - 1) . T.lines) <$>
         TIO.readFile f
 
+-- | get a SrcSpanInfo from a Decl
 declToSrcSpanInfo :: Decl SrcSpanInfo -> SrcSpanInfo
 declToSrcSpanInfo decl =
     case decl of

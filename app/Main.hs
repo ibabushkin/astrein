@@ -1,6 +1,8 @@
-{-# LANGUAGE FlexibleContexts, RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts, OverloadedStrings, RecordWildCards #-}
 import Data.Char (toLower)
+import Data.List (intersperse)
 import Data.Text (Text, pack)
+import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 import Language.ASTrein.AST
@@ -54,7 +56,7 @@ options =
         "The expression describing the query to be\n applied to the file(s).\n"
     , Option "n" ["nomatch"]
         (NoArg (\opts -> return opts { nomatch = True }))
-        "Don't match the query, only parse the AST"
+        "Don't match the query, just parse the AST."
     , Option "h" ["help"]
         (NoArg
             (\_ -> do
@@ -112,5 +114,6 @@ main = do
     if nomatch
        then mapM_ TIO.putStrLn =<< dispatchAST language files
        else case query of
-              Just q -> mapM_ TIO.putStr =<< dispatch language q files
+              Just q -> mapM_ TIO.putStrLn =<<
+                  intersperse "===\n" <$> dispatch language q files
               Nothing -> crash "error: no query specified, aborting"

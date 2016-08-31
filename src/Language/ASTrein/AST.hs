@@ -5,6 +5,7 @@ import Control.Applicative ((<|>))
 
 import Data.Attoparsec.Text hiding (match)
 import Data.Text (Text)
+import qualified Data.Text as T
 
 -- | a typeclass associating a type for a language-specific AST with
 -- a type used to query it and a way to obtain such queries from textual input
@@ -58,7 +59,8 @@ element2Parser :: AST a
                -> (Text -> Text -> Query a)
                -> Parser (Query a)
 element2Parser c cons = string c *> (cons <$> name <*> (string c *> name))
-    where name = takeWhile1 (`notElem` (" ()" :: String))
+    where name = takeWhile1 pred
+          pred a = a `notElem` (" ()" :: String) && a /= T.head c
 
 -- | combinator to allow for chaining two parsers together with an infix
 -- to construct a nested query.
