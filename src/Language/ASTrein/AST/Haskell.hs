@@ -220,20 +220,17 @@ getTypeName _ = Nothing
 -- | render the matches on an AST
 haskellRender :: ASTMatches HaskellAST -> IO Text
 haskellRender (ASTMatches file res) =
-    mappend ("file " <> pack file <> ":\n") <$> haskellRender' res
-
--- | render a QueryResult
-haskellRender' :: QueryResult HaskellAST -> IO Text
-haskellRender' ModuleNameMatch = return "module name matched."
-haskellRender' (ImportMatch ids) = do
-    decls <- mapM renderImportDecl ids
-    return $ "imports matched:\n" <> T.unlines decls
+    mappend ("file " <> pack file <> ":\n") <$> renderQueryResult res
     where renderImportDecl (ImportDecl s _ _ _ _ _ _ _) = renderSrcSpanInfo s
-haskellRender' (DeclMatch ds) = do
-    decls <- mapM renderDecl ds
-    return $ "declarations matched:\n" <> T.intercalate "\n" decls
-    where renderDecl = renderSrcSpanInfo . declToSrcSpanInfo
-haskellRender' NoMatch = return "no matches."
+          renderDecl = renderSrcSpanInfo . declToSrcSpanInfo
+          renderQueryResult ModuleNameMatch = return "module name matched."
+          renderQueryResult (ImportMatch ids) =
+              (("imports matched:\n" <>) . mconcat) <$>
+                  mapM renderImportDecl ids
+          renderQueryResult (DeclMatch ds) =
+              (("declarations matched:\n" <>) . mconcat) <$>
+                  mapM renderDecl ds
+          renderQueryResult NoMatch = return "no matches."
 
 -- | show a part of a file denoted by a SrcSpanInfo
 renderSrcSpanInfo :: SrcSpanInfo -> IO Text
