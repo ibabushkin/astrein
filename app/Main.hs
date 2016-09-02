@@ -1,6 +1,5 @@
-{-# LANGUAGE FlexibleContexts, OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 import Data.Char (toLower)
-import Data.List (intersperse)
 import Data.Text (Text, pack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -14,7 +13,7 @@ import Language.ASTrein.Util (readMaybeStr)
 import System.Console.GetOpt
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitSuccess, exitFailure)
-import System.IO (hPutStrLn, stderr)
+import System.IO (stderr)
 
 -- | supported languages type
 data Language
@@ -37,8 +36,7 @@ options =
                 case readMaybeStr str of
                   Just lang -> return opts { language = lang }
                   Nothing -> do
-                      hPutStrLn stderr
-                          "warning: language not recognized, using default"
+                      showError "warning: language not recognized, ignoring"
                       return opts
             )
             "LANGUAGE")
@@ -49,14 +47,14 @@ options =
         "The expression describing the query to be\n applied to the file(s).\n"
     , Option "n" ["nomatch"]
         (NoArg (\opts -> return opts { nomatch = True }))
-        "Don't match the query, just parse the AST."
+        "Don't match the query, just parse and display the AST."
     , Option "h" ["help"]
         (NoArg
             (\_ -> do
                 prg <- getProgName
                 let header = prg ++ " version 0.1.0.0\nUSAGE: " ++
                         prg ++ " [OPTION..] file(s)\nOPTIONS:" 
-                hPutStrLn stderr (usageInfo header options)
+                showError (pack $ usageInfo header options)
                 exitSuccess))
         "Show this help."
     ]
