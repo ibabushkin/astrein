@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings, PatternGuards #-}
-module Language.ASTrein.AST.Haskell where
+module Language.ASTrein.AST.Haskell (HaskellAST(..)) where
 
 import Language.ASTrein.AST
 import Language.ASTrein.AST.Template
@@ -50,9 +50,7 @@ instance AST HaskellAST where
         | NoMatch
         deriving (Show, Eq)
     parseAST' = parseHaskellAST
-    match = haskellMatchAST
-    render = haskellRender
-    parsers = Parsers
+    queryParsers = Parsers
         { elements =
             [ elementParser "m." (HName . MName)
             , elementParser "e." (HName . EName)
@@ -65,7 +63,10 @@ instance AST HaskellAST where
             ]
         , chains = [ chainingParser " - " Range ]
         }
+    match = haskellMatchAST
+    renderMatches = haskellRender
 
+-- | parse a Haskell AST from a file
 parseHaskellAST :: FilePath -> IO (Maybe HaskellAST)
 parseHaskellAST file = do
     res <- parseFile file
@@ -216,11 +217,10 @@ getTypeName (TyKind _ t _) = getTypeName t
 getTypeName (TyBang _ _ _ t) = getTypeName t
 getTypeName _ = Nothing
 
-haskellRender :: FileMatches HaskellAST -> IO Text
-haskellRender (Right (ASTMatches file res)) =
-    mappend ("file " <> pack file <> ":\n") <$> (haskellRender' res)
-haskellRender (Left file) =
-    return $ "file " <> pack file <> ": could not be parsed\n"
+-- | render the matches on an AST
+haskellRender :: ASTMatches HaskellAST -> IO Text
+haskellRender (ASTMatches file res) =
+    mappend ("file " <> pack file <> ":\n") <$> haskellRender' res
 
 -- | render a QueryResult
 haskellRender' :: QueryResult HaskellAST -> IO Text

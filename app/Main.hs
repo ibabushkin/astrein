@@ -28,14 +28,6 @@ data Options = Options
     , nomatch :: Bool
     , query :: Maybe Text
     }
-
-showError :: String -> IO ()
-showError = hPutStrLn stderr
-
--- | crash with a message
-crash :: String -> IO a
-crash msg = showError msg >> exitFailure
-
 -- | command line options parsing specification
 options :: [OptDescr (Options -> IO Options)]
 options =
@@ -62,7 +54,7 @@ options =
         (NoArg
             (\_ -> do
                 prg <- getProgName
-                let header = prg ++ " version 0.4\nUSAGE: " ++
+                let header = prg ++ " version 0.1.0.0\nUSAGE: " ++
                         prg ++ " [OPTION..] file(s)\nOPTIONS:" 
                 hPutStrLn stderr (usageInfo header options)
                 exitSuccess))
@@ -73,45 +65,25 @@ options =
 defaultOptions :: Options
 defaultOptions = Options Haskell False Nothing
 
--- | show a parse error if necessary when dispatching an Either
-parseError :: (a -> IO Text) -> Either FilePath a -> IO Text
-parseError func (Right r) = func r
-parseError func (Left l) = do
-    showError ("error: could not parse " ++ l ++ " to AST.")
-    return mempty
-
-type QueryOutput a = IO (Maybe [FileMatches a])
-
--- | a type for easier dispatching of ASTs
---
--- holds a list of results, which can be AST's or filenames for files which
--- could not be parsed into an AST.
-type ASTOutput a = IO [Either FilePath a]
-
 -- | dispatch language to determine the computation necessary
 dispatch :: Language -> Text -> [FilePath] -> IO [Text]
 dispatch lang queryText files =
     case lang of
-      Haskell -> show' (result :: QueryOutput HaskellAST)
-      Simple -> show' (result :: QueryOutput SimpleAST)
-    where result :: AST a => QueryOutput a
-          result = perform queryText files
-          show' res = do
-              r <- res
-              case r of
-                Just a -> mapM render a
-                Nothing -> crash "error: query parsing failed"
+      Haskell -> (result :: IO (MatchOutput HaskellAST)) >>= show'
+      Simple -> (result :: IO (MatchOutput SimpleAST)) >>= show'
+    where result :: AST a => IO (MatchOutput a)
+          result = performMatch queryText files
+          show' (Just a) = mapM renderFileMatches a
+          show' Nothing = crash "error: query parsing failed"
 
 -- | dispatch a language to parse the files to ASTs and display them
 dispatchAST :: Language -> [FilePath] -> IO [Text]
 dispatchAST lang files =
     case lang of
-      Haskell -> (asts :: ASTOutput HaskellAST) >>= mapM show'
-      Simple -> (asts :: ASTOutput SimpleAST) >>= mapM show'
-    where asts :: AST a => IO [Either String a]
+      Haskell -> (asts :: IO (ASTOutput HaskellAST)) >>= mapM renderShow
+      Simple -> (asts :: IO (ASTOutput SimpleAST)) >>= mapM renderShow
+    where asts :: AST a => IO (ASTOutput a)
           asts = mapM parseAST files
-          show' :: Show a => Either String a -> IO Text
-          show' = parseError (return . pack . show)
 
 -- | main routine
 main :: IO ()
@@ -122,6 +94,6 @@ main = do
     if nomatch
        then mapM_ TIO.putStrLn =<< dispatchAST language files
        else case query of
-              Just q -> mapM_ TIO.putStrLn =<<
-                  intersperse "===\n" <$> dispatch language q files
+              Just q -> TIO.putStrLn =<<
+                  T.intercalate "\n" <$> dispatch language q files
               Nothing -> crash "error: no query specified, aborting"

@@ -7,6 +7,27 @@ import Data.Attoparsec.Text hiding (match)
 import Data.Text (Text)
 import qualified Data.Text as T
 
+-- | a type representing the possibility of a failed file parsing
+type ParseResult a = Either FilePath a
+
+-- | a type to represent a set of matches for a query on a file
+data ASTMatches a = ASTMatches
+    { name :: FilePath -- ^ the file's name
+    , matches :: QueryResult a -- ^ the matches in that file
+    }
+
+-- | FileMatches are ASTMatches that can fail - if the file could not be
+-- parsed into an AST
+type FileMatches a = ParseResult (ASTMatches a)
+
+-- | a MatchOutput is what gets returned by an action working on multiple files
+-- and matching a query which possibly could not be parsed
+type MatchOutput a = Maybe [FileMatches a]
+
+-- | an ASTOutput is what gets returred by an action working on multiple files
+-- and parsing their AST's
+type ASTOutput a = [ParseResult a]
+
 -- | a typeclass associating a type for a language-specific AST with
 -- a type used to query it and a way to obtain such queries from textual input
 class AST a where
@@ -16,15 +37,15 @@ class AST a where
     data QueryResult a :: *
     -- | parse a file into an AST
     parseAST' :: FilePath -> IO (Maybe a)
+    -- | all parsers needed to parse a `Text` into a `Query a`
+    queryParsers :: Parsers a
     -- | apply query to an AST
     match :: Query a -> a -> QueryResult a
     -- | render a query's result
-    render :: FileMatches a -> IO Text
-    -- | all parsers needed to parse a `Text` into a `Query a`
-    parsers :: Parsers a
+    renderMatches :: ASTMatches a -> IO Text
 
 -- | parse an AST and return the filename in case of failure
-parseAST :: AST a => FilePath -> IO (Either FilePath a)
+parseAST :: AST a => FilePath -> IO (ParseResult a)
 parseAST file = transform <$> parseAST' file
     where transform (Just a) = Right a
           transform Nothing = Left file
@@ -36,8 +57,8 @@ parseQuery = either (const Nothing) Just . parseOnly toplevelParser
 -- | match a query in textual represenation on an AST taken from a file
 -- returns a wraped Nothing on query parsing failure and a Nothing in the list
 -- for each file that could not be parsed to an AST.
-perform :: AST a => Text -> [FilePath] -> IO (Maybe [FileMatches a])
-perform queryText files
+performMatch :: AST a => Text -> [FilePath] -> IO (MatchOutput a)
+performMatch queryText files
     | Just query <- parseQuery queryText = do
         asts <- mapM parseAST files
         return . Just $ zipWith (transform query) files asts
@@ -80,18 +101,10 @@ chainingParser sep cons =
 
 -- | a element in a nested context
 nestedParser :: AST a => Parser (Query a)
-nestedParser = choice ((mappend <$> map brace . chains <*> elements) parsers)
+nestedParser =
+    choice ((mappend <$> map brace . chains <*> elements) queryParsers)
     where brace p = char '(' *> skipSpace *> p <* skipSpace <* char ')'
 
 -- | the toplevel parser of the generic query grammar
 toplevelParser :: AST a => Parser (Query a)
-toplevelParser = (choice (chains parsers) <|> nestedParser) <* endOfInput
-
--- | a type to represent a set of matches for a query on a file
-data ASTMatches a = ASTMatches
-    { name :: FilePath -- ^ the file's name
-    , matches :: QueryResult a -- ^ the matches in that file
-    }
-
--- | FileMatches can fail - if the file could not be parsed into an AST
-type FileMatches a = Either FilePath (ASTMatches a)
+toplevelParser = (choice (chains queryParsers) <|> nestedParser) <* endOfInput

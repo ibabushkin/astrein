@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, TypeFamilies #-}
-module Language.ASTrein.AST.Simple where
+module Language.ASTrein.AST.Simple (SimpleAST(..)) where
 
 import Language.ASTrein.AST
 import Language.ASTrein.AST.Template
@@ -37,12 +37,8 @@ instance AST SimpleAST where
         deriving (Show, Eq)
     -- | parsing non-existant AST's is surprisingly simple
     parseAST' _ = return . Just . SimpleAST $ ()
-    -- | every query matches for obvious reasons
-    match _ _ = Match
-    -- | showing trivial matches
-    render _ = return "Trivial Match\n"
     -- | all our parsers
-    parsers = Parsers
+    queryParsers = Parsers
         { elements = [ valueParser (ValueIdent . ValueName)
                      , typeParser (TypeIdent . TypeName)
                      , lineNumParser (LineIdent . LineNumber)
@@ -51,3 +47,7 @@ instance AST SimpleAST where
                    , chainingParser " - " Range
                    ]
         }
+    -- | every query matches for obvious reasons
+    match _ _ = Match
+    -- | showing trivial matches
+    renderMatches _ = return "Trivial Match\n"
