@@ -20,6 +20,7 @@ library
                      , Language.ASTrein.AST.Haskell
                      , Language.ASTrein.AST.Simple
                      , Language.ASTrein.AST.Template
+                     , Language.ASTrein.Display
                      , Language.ASTrein.Util
   build-depends:       attoparsec >= 0.13.0.2
                      , base >= 4.7 && < 5

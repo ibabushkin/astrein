@@ -8,6 +8,7 @@ import qualified Data.Text.IO as TIO
 import Language.ASTrein.AST
 import Language.ASTrein.AST.Haskell (HaskellAST)
 import Language.ASTrein.AST.Simple (SimpleAST)
+import Language.ASTrein.Display
 import Language.ASTrein.Util (readMaybeStr)
 
 import System.Console.GetOpt
@@ -73,17 +74,19 @@ defaultOptions :: Options
 defaultOptions = Options Haskell False Nothing
 
 -- | show a parse error if necessary when dispatching an Either
-parseError :: (a -> IO Text) -> Either String a -> IO Text
+parseError :: (a -> IO Text) -> Either FilePath a -> IO Text
 parseError func (Right r) = func r
 parseError func (Left l) = do
     showError ("error: could not parse " ++ l ++ " to AST.")
     return mempty
 
--- | a type for easier dispatching of query results
-type QueryOutput a = IO (Maybe [Either String (QueryResult a)])
+type QueryOutput a = IO (Maybe [FileMatches a])
 
 -- | a type for easier dispatching of ASTs
-type ASTOutput a = IO [Either String a]
+--
+-- holds a list of results, which can be AST's or filenames for files which
+-- could not be parsed into an AST.
+type ASTOutput a = IO [Either FilePath a]
 
 -- | dispatch language to determine the computation necessary
 dispatch :: Language -> Text -> [FilePath] -> IO [Text]
@@ -96,10 +99,8 @@ dispatch lang queryText files =
           show' res = do
               r <- res
               case r of
-                Just a -> mapM render' a
+                Just a -> mapM render a
                 Nothing -> crash "error: query parsing failed"
-          render' :: AST a => Either String (QueryResult a) -> IO Text
-          render' = parseError render
 
 -- | dispatch a language to parse the files to ASTs and display them
 dispatchAST :: Language -> [FilePath] -> IO [Text]

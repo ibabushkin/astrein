@@ -216,18 +216,24 @@ getTypeName (TyKind _ t _) = getTypeName t
 getTypeName (TyBang _ _ _ t) = getTypeName t
 getTypeName _ = Nothing
 
+haskellRender :: FileMatches HaskellAST -> IO Text
+haskellRender (Right (ASTMatches file res)) =
+    mappend ("file " <> pack file <> ":\n") <$> (haskellRender' res)
+haskellRender (Left file) =
+    return $ "file " <> pack file <> ": could not be parsed\n"
+
 -- | render a QueryResult
-haskellRender :: QueryResult HaskellAST -> IO Text
-haskellRender ModuleNameMatch = return "module name matched."
-haskellRender (ImportMatch ids) = do
+haskellRender' :: QueryResult HaskellAST -> IO Text
+haskellRender' ModuleNameMatch = return "module name matched."
+haskellRender' (ImportMatch ids) = do
     decls <- mapM renderImportDecl ids
     return $ "imports matched:\n" <> T.unlines decls
     where renderImportDecl (ImportDecl s _ _ _ _ _ _ _) = renderSrcSpanInfo s
-haskellRender (DeclMatch ds) = do
+haskellRender' (DeclMatch ds) = do
     decls <- mapM renderDecl ds
     return $ "declarations matched:\n" <> T.intercalate "\n" decls
     where renderDecl = renderSrcSpanInfo . declToSrcSpanInfo
-haskellRender NoMatch = return "no matches."
+haskellRender' NoMatch = return "no matches."
 
 -- | show a part of a file denoted by a SrcSpanInfo
 renderSrcSpanInfo :: SrcSpanInfo -> IO Text

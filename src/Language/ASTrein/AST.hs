@@ -19,12 +19,12 @@ class AST a where
     -- | apply query to an AST
     match :: Query a -> a -> QueryResult a
     -- | render a query's result
-    render :: QueryResult a -> IO Text
+    render :: FileMatches a -> IO Text
     -- | all parsers needed to parse a `Text` into a `Query a`
     parsers :: Parsers a
 
 -- | parse an AST and return the filename in case of failure
-parseAST :: AST a => FilePath -> IO (Either String a)
+parseAST :: AST a => FilePath -> IO (Either FilePath a)
 parseAST file = transform <$> parseAST' file
     where transform (Just a) = Right a
           transform Nothing = Left file
@@ -36,14 +36,13 @@ parseQuery = either (const Nothing) Just . parseOnly toplevelParser
 -- | match a query in textual represenation on an AST taken from a file
 -- returns a wraped Nothing on query parsing failure and a Nothing in the list
 -- for each file that could not be parsed to an AST.
-perform :: AST a
-        => Text -> [FilePath]
-        -> IO (Maybe [Either String (QueryResult a)])
+perform :: AST a => Text -> [FilePath] -> IO (Maybe [FileMatches a])
 perform queryText files
     | Just query <- parseQuery queryText = do
-        files <- mapM parseAST files
-        return . Just $ map (fmap (match query)) files
+        asts <- mapM parseAST files
+        return . Just $ zipWith (transform query) files asts
     | otherwise = return Nothing
+    where transform query fName = fmap (ASTMatches fName . match query)
 
 -- | a collection type for all elementar and derived parsers for a Query type
 data Parsers a = Parsers
@@ -87,3 +86,12 @@ nestedParser = choice ((mappend <$> map brace . chains <*> elements) parsers)
 -- | the toplevel parser of the generic query grammar
 toplevelParser :: AST a => Parser (Query a)
 toplevelParser = (choice (chains parsers) <|> nestedParser) <* endOfInput
+
+-- | a type to represent a set of matches for a query on a file
+data ASTMatches a = ASTMatches
+    { name :: FilePath -- ^ the file's name
+    , matches :: QueryResult a -- ^ the matches in that file
+    }
+
+-- | FileMatches can fail - if the file could not be parsed into an AST
+type FileMatches a = Either FilePath (ASTMatches a)
