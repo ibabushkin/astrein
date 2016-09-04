@@ -135,7 +135,6 @@ matchDQuery' (TypeName queryName) tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
     | GDataDecl _ _ _ dHead _ _ _ <- tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
-    -- TODO: add type class traversal here: :i ClassDecl
     | ClassDecl _ _ _ _ (Just decls) <- tDecl
     , matchClassDecls queryName decls = Just tDecl
     | otherwise = Nothing
@@ -184,7 +183,6 @@ matchDQuery' (FuncName queryName) tDecl
     , getName fName == queryName = Just tDecl
     | TypeSig _ fNames _ <- tDecl
     , queryName `elem` map getName fNames = Just tDecl
-    -- TODO: add type class traversal here: :i ClassDecl
     | ClassDecl _ _ _ _ (Just decls) <- tDecl
     , matchClassDecls queryName decls = Just tDecl
     | otherwise = Nothing
@@ -192,12 +190,13 @@ matchDQuery' (FuncName queryName) tDecl
 -- | check whether a class declaration contains a name somewhere
 matchClassDecls :: Text -> [ClassDecl SrcSpanInfo] -> Bool
 matchClassDecls queryName = any matchClassDecl
-    where matchClassDecl (ClsDecl _ _) = False -- TODO: change?
+    where matchClassDecl (ClsDecl _ (TypeSig _ names _)) =
+              any ((== queryName) . getName) names
           matchClassDecl (ClsDataFam _ _ dHead _) =
               getDeclHeadName dHead == queryName
           matchClassDecl (ClsTyFam _ dHead _ _) =
               getDeclHeadName dHead == queryName
-          matchClassDecl (ClsDefSig _ name _) = getName name == queryName
+          matchClassDecl _ = False
 
 -- | get a textual representation of a module name
 getModuleName :: ModuleName a -> Text
