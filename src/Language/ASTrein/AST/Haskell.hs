@@ -31,7 +31,6 @@ data HQuery
 -- | query for a declaration in the source's body
 data DQuery
     = TypeName Text -- ^ query for a type's origin
-    | FamilyName Text -- ^ query for a type- or data family
     | ClassName Text -- ^ query for a typeclass
     | Instance Text Text -- ^ query for some instance
     | FuncName Text -- ^ query for a function
@@ -56,7 +55,6 @@ instance AST HaskellAST where
             , elementParser "e." (HName . EName)
             , elementParser "i." (HName . IName)
             , typeParser (DName . TypeName)
-            , elementParser "|" (DName . FamilyName)
             , classParser (DName . ClassName)
             , instanceParser (\a b -> DName (Instance a b))
             , valueParser (DName . FuncName)
@@ -137,9 +135,7 @@ matchDQuery' (TypeName queryName) tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
     | ClassDecl _ _ _ _ (Just decls) <- tDecl
     , matchClassDecls queryName decls = Just tDecl
-    | otherwise = Nothing
-matchDQuery' (FamilyName queryName) tDecl
-    -- TODO: maybe we should merge this with the former case?
+    -- type family stuff below (formerly queried separately)
     | TypeFamDecl _ dHead _ _ <- tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
     | ClosedTypeFamDecl _ dHead _ _ _ <- tDecl
