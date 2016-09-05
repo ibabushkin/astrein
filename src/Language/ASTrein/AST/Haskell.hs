@@ -1,12 +1,12 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings, PatternGuards #-}
-module Language.ASTrein.AST.Haskell (HaskellAST(..)) where
+module Language.ASTrein.AST.Haskell {-(HaskellAST(..))-} where
 
 import Language.ASTrein.AST
 import Language.ASTrein.AST.Template
 import Language.Haskell.Exts
 
-import Data.List (stripPrefix)
+import Data.List (stripPrefix, intercalate)
 import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>))
 import Data.Text (Text, pack)
@@ -108,7 +108,7 @@ matchHQuery ast (EName queryExport)
               | Just name <- getQName thingName, name == queryExport =
                   Just (TypeName name) -- FIXME: what about typeclasses?
               | otherwise = Nothing
-          -- ignore module reexports for now
+          -- FIXME: ignoring module reexports for now
           go (EModuleContents _ _) _ = Nothing
 matchHQuery ast@HaskellAST{ imports = imports } (IName queryImport) =
     case filter pred imports of
@@ -125,6 +125,7 @@ matchDQuery decls query =
       ds -> DeclMatch ds
 
 -- match a DQuery on a toplevel declaration
+--  TODO: what about pattern synonyms?
 matchDQuery' :: DQuery -> Decl SrcSpanInfo -> Maybe (Decl SrcSpanInfo)
 matchDQuery' (TypeName queryName) tDecl
     | TypeDecl _ dHead _ <- tDecl
@@ -133,9 +134,9 @@ matchDQuery' (TypeName queryName) tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
     | GDataDecl _ _ _ dHead _ _ _ <- tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
+    -- type family stuff below (formerly queried separately)
     | ClassDecl _ _ _ _ (Just decls) <- tDecl
     , matchClassDecls queryName decls = Just tDecl
-    -- type family stuff below (formerly queried separately)
     | TypeFamDecl _ dHead _ _ <- tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
     | ClosedTypeFamDecl _ dHead _ _ _ <- tDecl
@@ -174,8 +175,6 @@ matchDQuery' (FuncName queryName) tDecl
     | FunBind _ (InfixMatch _ _ fName _ _ _:_) <- tDecl
     , getName fName == queryName = Just tDecl
     | ForImp _ _ _ _ fName _ <- tDecl
-    , getName fName == queryName = Just tDecl
-    | PatBind _ (PVar _ fName) _ _ <- tDecl
     , getName fName == queryName = Just tDecl
     | TypeSig _ fNames _ <- tDecl
     , queryName `elem` map getName fNames = Just tDecl
@@ -235,14 +234,20 @@ haskellRender (ASTMatches file res) =
     mappend ("file " <> pack file <> ":\n") <$> renderQueryResult res
     where renderImportDecl (ImportDecl s _ _ _ _ _ _ _) = renderSrcSpanInfo s
           renderDecl = renderSrcSpanInfo . declToSrcSpanInfo
+          renderQueryResult NoMatch = return "no matches."
           renderQueryResult ModuleNameMatch = return "module name matched."
           renderQueryResult (ImportMatch ids) =
-              (("imports matched:\n" <>) . mconcat) <$>
+              (mappend "imports matched:\n" . mconcat) <$>
                   mapM renderImportDecl ids
           renderQueryResult (DeclMatch ds) =
-              (("declarations matched:\n" <>) . mconcat) <$>
-                  mapM renderDecl ds
-          renderQueryResult NoMatch = return "no matches."
+              (mappend "declarations matched:\n" . mconcat) <$>
+                  groupedMatches ds
+          groupedMatches :: [Decl SrcSpanInfo] -> IO [Text]
+          groupedMatches ds = intercalate ["\n"] <$>
+              mapM (mapM renderDecl) (foldr groupMatches [] ds)
+          groupMatches m1@(TypeSig _ _ _) ([m2@(FunBind _ _)]:ms) =
+              [m1,m2]:ms
+          groupMatches m ms = [m]:ms
 
 -- | show a part of a file denoted by a SrcSpanInfo
 renderSrcSpanInfo :: SrcSpanInfo -> IO Text

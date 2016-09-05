@@ -27,6 +27,7 @@ data Options = Options
     , nomatch :: Bool
     , query :: Maybe Text
     }
+
 -- | command line options parsing specification
 options :: [OptDescr (Options -> IO Options)]
 options =
