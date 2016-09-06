@@ -68,12 +68,12 @@ defaultOptions = Options Haskell False Nothing
 dispatch :: Language -> Text -> [FilePath] -> IO [Text]
 dispatch lang queryText files =
     case lang of
-      Haskell -> (result :: IO (MatchOutput HaskellAST)) >>= show'
-      Simple -> (result :: IO (MatchOutput SimpleAST)) >>= show'
+      Haskell -> (result :: IO (MatchOutput HaskellAST)) >>= render
+      Simple -> (result :: IO (MatchOutput SimpleAST)) >>= render
     where result :: AST a => IO (MatchOutput a)
           result = performMatch queryText files
-          show' (Just a) = mapM renderFileMatches a
-          show' Nothing = crash "error: query parsing failed"
+          render (Just a) = mapM renderFileMatches a
+          render Nothing = crash "error: query parsing failed"
 
 -- | dispatch a language to parse the files to ASTs and display them
 dispatchAST :: Language -> [FilePath] -> IO [Text]
@@ -93,6 +93,12 @@ main = do
     if nomatch
        then mapM_ TIO.putStrLn =<< dispatchAST language files
        else case query of
-              Just q -> TIO.putStrLn =<<
+              Just q -> cleanPutStrLn =<<
                   T.intercalate "\n" <$> dispatch language q files
               Nothing -> crash "error: no query specified, aborting"
+
+-- | clean output with only one newline at the end
+cleanPutStrLn :: Text -> IO ()
+cleanPutStrLn text
+    | "\n" `T.isSuffixOf` text = TIO.putStr text
+    | otherwise = TIO.putStrLn text
