@@ -128,38 +128,50 @@ matchDQuery decls query =
 --  TODO: what about pattern synonyms?
 matchDQuery' :: DQuery -> Decl SrcSpanInfo -> Maybe (Decl SrcSpanInfo)
 matchDQuery' (TypeName queryName) tDecl
+    -- type declarations
     | TypeDecl _ dHead _ <- tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
+    -- data declarations
     | DataDecl _ _ _ dHead _ _ <- tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
+    -- GADT declarations
     | GDataDecl _ _ _ dHead _ _ _ <- tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
-    -- type family stuff below (formerly queried separately)
+    -- class declarations' members (associated types)
     | ClassDecl _ _ _ _ (Just decls) <- tDecl
     , matchClassDecls queryName decls = Just tDecl
+    -- type family declarations
     | TypeFamDecl _ dHead _ _ <- tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
+    -- closed type family declarations
     | ClosedTypeFamDecl _ dHead _ _ _ <- tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
+    -- data family declarations
     | DataFamDecl _ _ dHead _ <- tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
     | otherwise = Nothing
 matchDQuery' (ClassName queryName) tDecl
+    -- class declarations
     | ClassDecl _ _ dHead _ _ <- tDecl
     , getDeclHeadName dHead == queryName = Just tDecl
     | otherwise = Nothing
 matchDQuery' (Instance queryClass queryName) tDecl
+    -- type instance declarations
     | TypeInsDecl _ (TyApp _ fType iType) _ <- tDecl
     , Just fName <- getTypeName fType, Just iName <- getTypeName iType
     , fName == queryClass && iName == queryName = Just tDecl
+    -- data instance declarations
     | DataInsDecl _ _ (TyApp _ fType iType) _ _ <- tDecl
     , Just fName <- getTypeName fType, Just iName <- getTypeName iType
     , fName == queryClass && iName == queryName = Just tDecl
+    -- GADT instance declarations
     | GDataInsDecl _ _ (TyApp _ fType iType) _ _ _ <- tDecl
     , Just fName <- getTypeName fType, Just iName <- getTypeName iType
     , fName == queryClass && iName == queryName = Just tDecl
+    -- typeclass instance declarations
     | InstDecl _ _ iRule _ <- tDecl, Just (qn, t) <- matchIRule iRule
     , qn == queryClass && t == queryName = Just tDecl
+    -- deriving declarations
     | DerivDecl _ _ iRule <- tDecl, Just (qn, t) <- matchIRule iRule
     , qn == queryClass && t == queryName = Just tDecl
     | otherwise = Nothing
@@ -170,16 +182,22 @@ matchDQuery' (Instance queryClass queryName) tDecl
               (,) <$> getQName qn <*> getTypeName t
           matchIHead _ = Nothing
 matchDQuery' (FuncName queryName) tDecl
-    | FunBind _ (Match _ fName _ _ _:_) <- tDecl
+    -- normal functions
+    | FunBind _ (Match _ fName _ _ _:_) <- tDecl --
     , getName fName == queryName = Just tDecl
+    -- functions in infix notation
     | FunBind _ (InfixMatch _ _ fName _ _ _:_) <- tDecl
     , getName fName == queryName = Just tDecl
+    -- non-functions binding to a simple name
     | PatBind _ (PVar _ fName) _ _ <- tDecl
     , getName fName == queryName = Just tDecl
+    -- foreign import declarations
     | ForImp _ _ _ _ fName _ <- tDecl
     , getName fName == queryName = Just tDecl
+    -- type signatures for toplevel declarations
     | TypeSig _ fNames _ <- tDecl
     , queryName `elem` map getName fNames = Just tDecl
+    -- class declarations' members
     | ClassDecl _ _ _ _ (Just decls) <- tDecl
     , matchClassDecls queryName decls = Just tDecl
     | otherwise = Nothing
