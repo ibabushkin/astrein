@@ -245,7 +245,7 @@ haskellRender (ASTMatches file res) =
           groupedMatches :: [Decl SrcSpanInfo] -> IO [Text]
           groupedMatches ds = intercalate ["\n"] <$>
               mapM (mapM renderDecl) (foldr groupMatches [] ds)
-          groupMatches m1@(TypeSig _ _ _) ([m2@(FunBind _ _)]:ms) =
+          groupMatches m1@TypeSig{} ([m2@(FunBind _ _)]:ms) =
               [m1,m2]:ms
           groupMatches m ms = [m]:ms
 

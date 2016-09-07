@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 import Data.Char (toLower)
 import Data.Text (Text, pack)
 import qualified Data.Text as T
