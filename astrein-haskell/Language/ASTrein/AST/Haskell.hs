@@ -174,6 +174,8 @@ matchDQuery' (FuncName queryName) tDecl
     , getName fName == queryName = Just tDecl
     | FunBind _ (InfixMatch _ _ fName _ _ _:_) <- tDecl
     , getName fName == queryName = Just tDecl
+    | PatBind _ (PVar _ fName) _ _ <- tDecl
+    , getName fName == queryName = Just tDecl
     | ForImp _ _ _ _ fName _ <- tDecl
     , getName fName == queryName = Just tDecl
     | TypeSig _ fNames _ <- tDecl
@@ -245,7 +247,9 @@ haskellRender (ASTMatches file res) =
           groupedMatches :: [Decl SrcSpanInfo] -> IO [Text]
           groupedMatches ds = intercalate ["\n"] <$>
               mapM (mapM renderDecl) (foldr groupMatches [] ds)
-          groupMatches m1@TypeSig{} ([m2@(FunBind _ _)]:ms) =
+          groupMatches m1@TypeSig{} ([m2@FunBind{}]:ms) =
+              [m1,m2]:ms
+          groupMatches m1@TypeSig{} ([m2@PatBind{}]:ms) =
               [m1,m2]:ms
           groupMatches m ms = [m]:ms
 
