@@ -4,12 +4,13 @@ module Language.ASTrein.Util (Dispatcher, dispatchMatch, languageMain) where
 import Data.Text (Text, pack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import Data.Monoid((<>))
 
 import Language.ASTrein.AST
 import Language.ASTrein.Display
 
-import System.Console.GetOpt
-import System.Environment (getArgs)
+import System.Environment (getArgs, getProgName)
+import System.Exit (exitSuccess)
 
 -- | a phantom-type wrapper for Text representing queries
 newtype QueryText a = QueryText Text
@@ -27,9 +28,15 @@ dispatchMatch (QueryText queryText) files =
 -- | a main function to use in a subprogram for a specific language
 languageMain :: AST a => Dispatcher a -> IO ()
 languageMain dispatch = do
-    (query:files) <- getArgs
-    T.intercalate "\n" <$> dispatch (QueryText $ pack query) files
-        >>= cleanPutStrLn
+    args <- getArgs
+    case args of
+      [] -> do
+          prg <- pack <$> getProgName
+          showError $ "astrein-" <> prg <> " version 0.1.0.0\n\
+              \USAGE: astrein-haskell QUERY FILE(S)"
+      (query:files) -> do
+          str <- T.intercalate "\n" <$> dispatch (QueryText $ pack query) files
+          cleanPutStrLn str
 
 -- | clean output with only one newline at the end
 cleanPutStrLn :: Text -> IO ()

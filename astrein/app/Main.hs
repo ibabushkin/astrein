@@ -1,21 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
-import Data.Char (toLower)
-import Data.Text (Text, pack)
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
+import Language.ASTrein.Display (showError)
 
-import Language.ASTrein.AST
-import Language.ASTrein.Display
-
-import System.Console.GetOpt
-import System.Environment (getArgs, getProgName)
+import System.Environment (getArgs)
 import System.Exit (exitSuccess, exitWith)
 import System.Process (spawnProcess, waitForProcess)
 
+-- | show a "helpful" message
 showHelp :: IO ()
 showHelp = do
     showError
-        "astrein version 0.1.0.0\nUSAGE: astrein LANGUAGE [OPTION(S)] FILE(S)"
+        "astrein version 0.1.0.0\nUSAGE: astrein LANGUAGE QUERY FILE(S)"
     exitSuccess
 
 -- | main routine
@@ -26,6 +20,7 @@ main = do
        then showHelp
        else run args
 
+-- | run a subcommand
 run :: [String] -> IO ()
 run (lang:args) =
     spawnProcess ("astrein-" ++ lang) args >>= waitForProcess >>= exitWith
