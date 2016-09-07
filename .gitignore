@@ -3,5 +3,6 @@
 *.o
 .ropeproject/*
 */.ropeproject/*
-dist/*
+*/dist/*
+*/.stack-work/*
 .stack-work/*
