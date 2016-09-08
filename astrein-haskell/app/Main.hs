@@ -1,4 +1,4 @@
 import Language.ASTrein.AST.Haskell (HaskellAST)
-import Language.ASTrein.Util
+import Language.ASTrein.LanguageMain
 
 main = languageMain (dispatchMatch :: Dispatcher HaskellAST)

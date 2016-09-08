@@ -18,7 +18,7 @@ library
                      , Language.ASTrein.AST
                      , Language.ASTrein.AST.Template
                      , Language.ASTrein.Display
-                     , Language.ASTrein.Util
+                     , Language.ASTrein.LanguageMain
   build-depends:       attoparsec >= 0.13.0.2
                      , base >= 4.7 && < 5
                      , text >= 1.2.2.1
