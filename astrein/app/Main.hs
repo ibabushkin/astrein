@@ -2,7 +2,7 @@
 import Language.ASTrein.Display (showError)
 
 import Data.Maybe (fromMaybe, listToMaybe)
-import Data.Text (Text, pack)
+import Data.Text (pack)
 
 import System.Console.GetOpt
 import System.Environment (getArgs, getProgName)
