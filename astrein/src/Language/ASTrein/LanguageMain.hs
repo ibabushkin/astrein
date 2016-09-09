@@ -62,7 +62,7 @@ languageMain dispatch = do
     args <- getArgs
     let (actions, files, errors) = getOpt RequireOrder options args
     Options{..} <- foldl (>>=) (return (Options Nothing :: Options a)) actions
-    if length errors == 0
+    if null errors
        then do
            str <- T.intercalate "\n" <$> dispatch query files
            cleanPutStrLn str
