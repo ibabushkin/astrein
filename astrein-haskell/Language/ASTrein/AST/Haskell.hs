@@ -46,7 +46,6 @@ instance AST HaskellAST where
         = ModuleNameMatch
         | ImportMatch [ImportDecl SrcSpanInfo]
         | DeclMatch [Decl SrcSpanInfo]
-        | NoMatch
         deriving (Show, Eq)
     parseAST' = parseHaskellAST
     queryParsers = Parsers
@@ -74,26 +73,28 @@ parseHaskellAST file = do
       ParseFailed _ _ -> return Nothing
 
 -- | match a query on an AST
-haskellMatchAST :: Query HaskellAST -> HaskellAST -> QueryResult HaskellAST
+haskellMatchAST :: Query HaskellAST -> HaskellAST
+                -> Maybe (QueryResult HaskellAST)
 haskellMatchAST (HName hQuery) ast = matchHQuery ast hQuery
 haskellMatchAST (DName dQuery) ast = matchDQuery (decls ast) dQuery
+-- TODO: seemingly dead code ;)
 haskellMatchAST (Range (DName q1) (DName q2)) HaskellAST{ decls = decls }
-    | DeclMatch xs@(x:_) <- matchDQuery decls q1
+    | Just (DeclMatch xs@(x:_)) <- matchDQuery decls q1
     , Just decls' <- stripPrefix xs (dropWhile (/= x) decls)
-    , DeclMatch ys <- matchDQuery decls' q2 =
-        DeclMatch . takeWhile (/= last ys) $ dropWhile (/= x) decls
-    | otherwise = NoMatch
+    , Just (DeclMatch ys) <- matchDQuery decls' q2 =
+        Just . DeclMatch . takeWhile (/= last ys) $ dropWhile (/= x) decls
+    | otherwise = Nothing
 
 -- | match a query on an AST's head
-matchHQuery :: HaskellAST -> HQuery -> QueryResult HaskellAST
+matchHQuery :: HaskellAST -> HQuery -> Maybe (QueryResult HaskellAST)
 matchHQuery ast (MName queryName)
     | Just (ModuleHead _ (ModuleName _ name) _ _) <- moduleHead ast
-    , pack name == queryName = ModuleNameMatch
-    | otherwise = NoMatch
+    , pack name == queryName = Just ModuleNameMatch
+    | otherwise = Nothing
 matchHQuery ast (EName queryExport)
     | Just (ModuleHead _ _ _ (Just exports)) <- moduleHead ast
     , Just dquery <- findName exports = matchDQuery (decls ast) dquery
-    | otherwise = NoMatch
+    | otherwise = Nothing
     where findName (ExportSpecList _ exportList) = foldr go Nothing exportList
           go _ res@(Just _) = res
           go (EVar _ varName) _
@@ -112,17 +113,17 @@ matchHQuery ast (EName queryExport)
           go (EModuleContents _ _) _ = Nothing
 matchHQuery ast@HaskellAST{ imports = imports } (IName queryImport) =
     case filter pred imports of
-      [] -> NoMatch
-      is -> ImportMatch is
+      [] -> Nothing
+      is -> Just $ ImportMatch is
     where pred d@ImportDecl{ importModule = ModuleName _ importName } =
               pack importName == queryImport
 
 -- | match a query on an AST's body
-matchDQuery :: [Decl SrcSpanInfo] -> DQuery -> QueryResult HaskellAST
+matchDQuery :: [Decl SrcSpanInfo] -> DQuery -> Maybe (QueryResult HaskellAST)
 matchDQuery decls query =
     case mapMaybe (matchDQuery' query) decls of
-      [] -> NoMatch
-      ds -> DeclMatch ds
+      [] -> Nothing
+      ds -> Just $ DeclMatch ds
 
 -- match a DQuery on a toplevel declaration
 --  TODO: what about pattern synonyms?
@@ -250,11 +251,10 @@ getTypeName _ = Nothing
 
 -- | render the matches on an AST
 haskellRender :: ASTMatches HaskellAST -> IO Text
-haskellRender (ASTMatches file res) =
+haskellRender (ASTMatches file (Just res)) =
     mappend ("file " <> pack file <> ":\n") <$> renderQueryResult res
     where renderImportDecl (ImportDecl s _ _ _ _ _ _ _) = renderSrcSpanInfo s
           renderDecl = renderSrcSpanInfo . declToSrcSpanInfo
-          renderQueryResult NoMatch = return "no matches."
           renderQueryResult ModuleNameMatch = return "module name matched."
           renderQueryResult (ImportMatch ids) =
               (mappend "imports matched:\n" . mconcat) <$>
@@ -269,6 +269,8 @@ haskellRender (ASTMatches file res) =
           groupMatches m1@TypeSig{} ([m2@PatBind{}]:ms) =
               [m1,m2]:ms
           groupMatches m ms = [m]:ms
+haskellRender (ASTMatches file Nothing) =
+    return $ "no matches in " <> pack file <> "."
 
 -- | show a part of a file denoted by a SrcSpanInfo
 renderSrcSpanInfo :: SrcSpanInfo -> IO Text

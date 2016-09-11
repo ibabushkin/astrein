@@ -4,6 +4,7 @@ module Language.ASTrein.Display where
 import Data.Text (Text, pack)
 import Data.Text.IO (hPutStrLn)
 
+import Data.Maybe (isJust)
 import Data.Monoid ((<>))
 
 import Language.ASTrein.AST
@@ -20,8 +21,13 @@ crash :: Text -> IO a
 crash msg = showError msg >> exitFailure
 
 -- | render FileMatches using the AST typeclass' renderMatches function
-renderFileMatches :: AST a => FileMatches a -> IO Text
-renderFileMatches = renderParseResult renderMatches
+renderFileMatches :: AST a => Bool -> FileMatches a -> IO Text
+renderFileMatches verbose ms
+    | verbose || matchPresent ms = renderParseResult renderMatches ms
+    | otherwise = return mempty
+    where matchPresent (Right ms) = isJust (matches ms)
+          matchPresent _ = False
+
 
 -- | render a ParseResult wrapping a type implementing Show
 renderShow :: Show a => ParseResult a -> IO Text

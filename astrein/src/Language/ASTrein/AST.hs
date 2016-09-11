@@ -13,7 +13,7 @@ type ParseResult a = Either FilePath a
 -- | a type to represent a set of matches for a query on a file
 data ASTMatches a = ASTMatches
     { name :: FilePath -- ^ the file's name
-    , matches :: QueryResult a -- ^ the matches in that file
+    , matches :: Maybe (QueryResult a) -- ^ the matches in that file
     }
 
 -- | FileMatches are ASTMatches that can fail - if the file could not be
@@ -40,7 +40,7 @@ class AST a where
     -- | all parsers needed to parse a `Text` into a `Query a`
     queryParsers :: Parsers a
     -- | apply query to an AST
-    match :: Query a -> a -> QueryResult a
+    match :: Query a -> a -> Maybe (QueryResult a)
     -- | render a query's result
     renderMatches :: ASTMatches a -> IO Text
 
