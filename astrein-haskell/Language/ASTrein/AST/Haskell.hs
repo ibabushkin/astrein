@@ -262,7 +262,6 @@ haskellRender (ASTMatches file res) =
           renderQueryResult (DeclMatch ds) =
               (mappend "declarations matched:\n" . mconcat) <$>
                   groupedMatches ds
-          groupedMatches :: [Decl SrcSpanInfo] -> IO [Text]
           groupedMatches ds = intercalate ["\n"] <$>
               mapM (mapM renderDecl) (foldr groupMatches [] ds)
           groupMatches m1@TypeSig{} ([m2@FunBind{}]:ms) =

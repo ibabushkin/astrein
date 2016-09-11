@@ -67,15 +67,6 @@ languageMain dispatch = do
            str <- T.intercalate "\n" <$> dispatch query files
            cleanPutStrLn str
        else mapM_ putStrLn errors
-    {-case args of
-      [] -> do
-          prg <- pack <$> getProgName
-          showError $ "astrein-" <> prg <> " version 0.1.0.0\n\
-              \USAGE: astrein-haskell QUERY FILE(S)"
-      (query:files) -> do
-          str <- T.intercalate "\n" <$> dispatch (QueryText $ pack query) files
-          cleanPutStrLn str
-          -}
 
 -- | clean output with only one newline at the end
 cleanPutStrLn :: Text -> IO ()
