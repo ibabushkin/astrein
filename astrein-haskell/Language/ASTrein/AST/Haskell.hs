@@ -77,7 +77,6 @@ haskellMatchAST :: Query HaskellAST -> HaskellAST
                 -> Maybe (QueryResult HaskellAST)
 haskellMatchAST (HName hQuery) ast = matchHQuery ast hQuery
 haskellMatchAST (DName dQuery) ast = matchDQuery (decls ast) dQuery
--- TODO: seemingly dead code ;)
 haskellMatchAST (Range (DName q1) (DName q2)) HaskellAST{ decls = decls }
     | Just (DeclMatch xs@(x:_)) <- matchDQuery decls q1
     , Just decls' <- stripPrefix xs (dropWhile (/= x) decls)
