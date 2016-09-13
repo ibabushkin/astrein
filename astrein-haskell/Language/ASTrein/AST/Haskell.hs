@@ -124,7 +124,7 @@ matchHQuery HaskellAST{ imports = imports } (IName queryImport) =
     case filter pred imports of
       [] -> Nothing
       is -> Just $ ImportMatch is
-    where pred ImportDecl {..} = elem queryImport
+    where pred ImportDecl {..} = queryImport `elem`
               [ getModuleName importModule
               , fromMaybe mempty (getModuleName <$> importAs)
               ]
@@ -137,7 +137,6 @@ matchDQuery decls query =
       ds -> Just $ DeclMatch ds
 
 -- match a DQuery on a toplevel declaration
---  TODO: what about pattern synonyms?
 matchDQuery' :: DQuery -> Decl SrcSpanInfo -> Maybe (Decl SrcSpanInfo)
 matchDQuery' (TypeName queryName) tDecl
     -- type declarations
@@ -193,6 +192,7 @@ matchDQuery' (Instance queryClass queryName) tDecl
           matchIHead (IHApp _ (IHCon _ qn) t) =
               (,) <$> getQName qn <*> getTypeName t
           matchIHead _ = Nothing
+-- TODO: value constructors
 matchDQuery' (FuncName queryName) tDecl
     -- normal functions
     | FunBind _ (Match _ fName _ _ _:_) <- tDecl --
@@ -212,6 +212,13 @@ matchDQuery' (FuncName queryName) tDecl
     -- class declarations' members
     | ClassDecl _ _ _ _ (Just decls) <- tDecl
     , matchClassDecls queryName decls = Just tDecl
+    -- pattern synonyms can be used as values/patterns
+    | PatSyn _ (PApp _ cName _) _ _ <- tDecl
+    , Just constructorName <- getQName cName
+    , constructorName == queryName = Just tDecl
+    -- pattern synonyms also have type signatures
+    | PatSynSig _ cName _ _ _ _ <- tDecl
+    , getName cName == queryName = Just tDecl
     | otherwise = Nothing
 
 -- | check whether a class declaration contains a name somewhere
@@ -249,7 +256,8 @@ getDeclHeadName (DHParen _ tHead) = getDeclHeadName tHead
 getDeclHeadName (DHApp _ tHead _) = getDeclHeadName tHead
 
 -- | get a textual representation of a type's name
--- TODO: maybe we should return a result for everything?
+-- TODO: maybe we should return a result for everything? Or should we restrict
+-- outselves to TyApp and TyCon, along with TyParen?
 getTypeName :: Type a -> Maybe Text
 getTypeName (TyForall _ _ _ t) = getTypeName t
 getTypeName (TyApp _ t _) = getTypeName t
