@@ -24,18 +24,18 @@ crash msg = showError msg >> exitFailure
 renderFileMatches :: AST a => Bool -> FileMatches a -> IO Text
 renderFileMatches verbose ms
     | verbose || matchPresent ms = renderParseResult renderMatches ms
-    | otherwise = return mempty
+    | otherwise = mempty
     where matchPresent (Right ms) = isJust (matches ms)
           matchPresent _ = False
 
 
 -- | render a ParseResult wrapping a type implementing Show
 renderShow :: Show a => ParseResult a -> IO Text
-renderShow = renderParseResult (return . pack . show)
+renderShow = renderParseResult (pack . show)
 
 -- | render a ParseResult give a rendering function for the underlying type
-renderParseResult :: (a -> IO Text) -> ParseResult a -> IO Text
+renderParseResult :: (a -> Text) -> ParseResult a -> IO Text
 renderParseResult _ (Left file) = do
     showError $ "error: could not parse " <> pack file <> " to an AST"
     return mempty
-renderParseResult renderFunc (Right a) = renderFunc a
+renderParseResult renderFunc (Right a) = return $renderFunc a

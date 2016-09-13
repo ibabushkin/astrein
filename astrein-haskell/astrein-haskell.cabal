@@ -1,5 +1,5 @@
 name:                astrein-haskell
-version:             0.2.0.0
+version:             0.3.0.0
 synopsis:            astrein's haskell mode
 description:         Please see README.md
 homepage:            https://github.com/ibabushkin/astrein#readme
@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Language.ASTrein.AST.Haskell
   build-depends:       attoparsec >= 0.13.0.2
-                     , astrein == 0.2.0.0
+                     , astrein == 0.3.0.0
                      , base >= 4.7 && < 5
                      , haskell-src-exts >= 1.18.2
                      , text >= 1.2.2.1
@@ -26,8 +26,8 @@ executable astrein-haskell
   hs-source-dirs:         app
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
-                     , astrein == 0.2.0.0
-                     , astrein-haskell == 0.2.0.0
+                     , astrein == 0.3.0.0
+                     , astrein-haskell == 0.3.0.0
                      , haskell-src-exts >= 1.18.2
                      , text >= 1.2.2.1
   default-language:    Haskell2010

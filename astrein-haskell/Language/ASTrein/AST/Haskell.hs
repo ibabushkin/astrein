@@ -9,7 +9,7 @@ import Language.Haskell.Exts
 import Data.List (stripPrefix, intercalate)
 import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>))
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
@@ -64,13 +64,12 @@ instance AST HaskellAST where
     renderMatches = haskellRender
 
 -- | parse a Haskell AST from a file
-parseHaskellAST :: FilePath -> IO (Maybe HaskellAST)
-parseHaskellAST file = do
-    res <- parseFile file
-    case res of
+parseHaskellAST :: Text -> Maybe HaskellAST
+parseHaskellAST fileContent =
+    case parseFileContents (unpack fileContent) of
       ParseOk (Module _ mHead mPragmas imports decls) ->
-          return . Just $ HaskellAST mHead mPragmas imports decls
-      ParseFailed _ _ -> return Nothing
+          Just $ HaskellAST mHead mPragmas imports decls
+      ParseFailed _ _ -> Nothing
 
 -- | match a query on an AST
 haskellMatchAST :: Query HaskellAST -> HaskellAST
@@ -249,33 +248,31 @@ getTypeName (TyBang _ _ _ t) = getTypeName t
 getTypeName _ = Nothing
 
 -- | render the matches on an AST
-haskellRender :: ASTMatches HaskellAST -> IO Text
-haskellRender (ASTMatches file (Just res)) =
-    mappend ("file " <> pack file <> ":\n") <$> renderQueryResult res
-    where renderImportDecl (ImportDecl s _ _ _ _ _ _ _) = renderSrcSpanInfo s
-          renderDecl = renderSrcSpanInfo . declToSrcSpanInfo
-          renderQueryResult ModuleNameMatch = return "module name matched."
+haskellRender :: ASTMatches HaskellAST -> Text
+haskellRender (ASTMatches fileName fileContents (Just res)) =
+    "file " <> pack fileName <> ":\n" <> renderQueryResult res
+    where renderImportDecl (ImportDecl s _ _ _ _ _ _ _) =
+              renderSrcSpanInfo fileContents s
+          renderDecl = renderSrcSpanInfo fileContents . declToSrcSpanInfo
+          renderQueryResult ModuleNameMatch = "module name matched."
           renderQueryResult (ImportMatch ids) =
-              (mappend "imports matched:\n" . mconcat) <$>
-                  mapM renderImportDecl ids
+              "imports matched:\n" <> mconcat (map renderImportDecl ids)
           renderQueryResult (DeclMatch ds) =
-              (mappend "declarations matched:\n" . mconcat) <$>
-                  groupedMatches ds
-          groupedMatches ds = intercalate ["\n"] <$>
-              mapM (mapM renderDecl) (foldr groupMatches [] ds)
+              "declarations matched:\n" <> mconcat (groupedMatches ds)
+          groupedMatches ds = intercalate ["\n"] . map (map renderDecl) $
+              foldr groupMatches [] ds
           groupMatches m1@TypeSig{} ([m2@FunBind{}]:ms) =
               [m1,m2]:ms
           groupMatches m1@TypeSig{} ([m2@PatBind{}]:ms) =
               [m1,m2]:ms
           groupMatches m ms = [m]:ms
-haskellRender (ASTMatches file Nothing) =
-    return $ "no matches in " <> pack file <> "."
+haskellRender (ASTMatches fileName _ Nothing) =
+    "no matches in " <> pack fileName <> "."
 
 -- | show a part of a file denoted by a SrcSpanInfo
-renderSrcSpanInfo :: SrcSpanInfo -> IO Text
-renderSrcSpanInfo (SrcSpanInfo (SrcSpan f sl sc el ec) _) =
-    (T.unlines . take (el - sl + 1) . drop (sl - 1) . T.lines) <$>
-        TIO.readFile f
+renderSrcSpanInfo :: Text -> SrcSpanInfo -> Text
+renderSrcSpanInfo text (SrcSpanInfo (SrcSpan _ sl sc el ec) _) =
+    (T.unlines . take (el - sl + 1) . drop (sl - 1) . T.lines) text
 
 -- | get a SrcSpanInfo from a Decl
 declToSrcSpanInfo :: Decl SrcSpanInfo -> SrcSpanInfo

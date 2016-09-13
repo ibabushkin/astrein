@@ -6,6 +6,7 @@ import Control.Applicative ((<|>))
 import Data.Attoparsec.Text hiding (match)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
 -- | a type representing the possibility of a failed file parsing
 type ParseResult a = Either FilePath a
@@ -13,6 +14,7 @@ type ParseResult a = Either FilePath a
 -- | a type to represent a set of matches for a query on a file
 data ASTMatches a = ASTMatches
     { name :: FilePath -- ^ the file's name
+    , content :: Text -- ^ the file's content
     , matches :: Maybe (QueryResult a) -- ^ the matches in that file
     }
 
@@ -36,19 +38,19 @@ class AST a where
     -- | query result type
     data QueryResult a :: *
     -- | parse a file into an AST
-    parseAST' :: FilePath -> IO (Maybe a)
+    parseAST' :: Text -> Maybe a
     -- | all parsers needed to parse a `Text` into a `Query a`
     queryParsers :: Parsers a
     -- | apply query to an AST
     match :: Query a -> a -> Maybe (QueryResult a)
     -- | render a query's result
-    renderMatches :: ASTMatches a -> IO Text
+    renderMatches :: ASTMatches a -> Text
 
 -- | parse an AST and return the filename in case of failure
-parseAST :: AST a => FilePath -> IO (ParseResult a)
-parseAST file = transform <$> parseAST' file
+parseAST :: AST a => FilePath -> Text -> ParseResult a
+parseAST fileName fileContent = transform $ parseAST' fileContent
     where transform (Just a) = Right a
-          transform Nothing = Left file
+          transform Nothing = Left fileName
 
 -- | parse a query from text
 parseQuery :: AST a => Text -> Maybe (Query a)
@@ -60,10 +62,11 @@ parseQuery = either (const Nothing) Just . parseOnly toplevelParser
 performMatch :: AST a => Text -> [FilePath] -> IO (MatchOutput a)
 performMatch queryText files
     | Just query <- parseQuery queryText = do
-        asts <- mapM parseAST files
-        return . Just $ zipWith (transform query) files asts
+        contents <- mapM TIO.readFile files
+        let asts = zipWith parseAST files contents
+        return . Just $ zipWith3 (transform query) files contents asts
     | otherwise = return Nothing
-    where transform query fName = fmap (ASTMatches fName . match query)
+    where transform q fN fC = fmap (ASTMatches fN fC . match q)
 
 -- | a collection type for all elementar and derived parsers for a Query type
 data Parsers a = Parsers

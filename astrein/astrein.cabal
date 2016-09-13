@@ -1,5 +1,5 @@
 name:                astrein
-version:             0.2.0.0
+version:             0.3.0.0
 synopsis:            A library and tool to query AST's for definitions of names
 description:         Please see README.md
 homepage:            https://github.com/ibabushkin/astrein#readme
