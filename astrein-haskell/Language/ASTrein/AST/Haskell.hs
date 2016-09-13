@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE OverloadedStrings, PatternGuards #-}
+{-# LANGUAGE OverloadedStrings, PatternGuards, RecordWildCards #-}
 module Language.ASTrein.AST.Haskell {-(HaskellAST(..))-} where
 
 import Language.ASTrein.AST
@@ -7,7 +7,7 @@ import Language.ASTrein.AST.Template
 import Language.Haskell.Exts
 
 import Data.List (stripPrefix, intercalate)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Monoid ((<>))
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
@@ -72,7 +72,8 @@ parseHaskellAST fileContent =
       ParseFailed _ _ -> Nothing
 
 -- | match a query on an AST
-haskellMatchAST :: Query HaskellAST -> HaskellAST
+haskellMatchAST :: Query HaskellAST
+                -> HaskellAST
                 -> Maybe (QueryResult HaskellAST)
 haskellMatchAST (HName hQuery) ast = matchHQuery ast hQuery
 haskellMatchAST (DName dQuery) ast = matchDQuery (decls ast) dQuery
@@ -83,6 +84,10 @@ haskellMatchAST (Range (DName q1) (DName q2)) HaskellAST{ decls = decls }
         Just . DeclMatch . takeWhile (/= last ys) $ dropWhile (/= x) decls
     | otherwise = Nothing
 
+data RecursiveHQuery
+    = RDQuery DQuery
+    | RHQuery HQuery
+
 -- | match a query on an AST's head
 matchHQuery :: HaskellAST -> HQuery -> Maybe (QueryResult HaskellAST)
 matchHQuery ast (MName queryName)
@@ -91,30 +96,38 @@ matchHQuery ast (MName queryName)
     | otherwise = Nothing
 matchHQuery ast (EName queryExport)
     | Just (ModuleHead _ _ _ (Just exports)) <- moduleHead ast
-    , Just dquery <- findName exports = matchDQuery (decls ast) dquery
+    , Just newQuery <- findName exports =
+        case newQuery of
+          RDQuery dquery -> matchDQuery (decls ast) dquery
+          RHQuery hquery -> matchHQuery ast hquery
     | otherwise = Nothing
     where findName (ExportSpecList _ exportList) = foldr go Nothing exportList
           go _ res@(Just _) = res
           go (EVar _ varName) _
               | Just name <- getQName varName, name == queryExport =
-                  Just (FuncName name)
+                  Just . RDQuery $ FuncName name
               | otherwise = Nothing
           go (EAbs _ _ typeName) _
               | Just name <- getQName typeName, name == queryExport =
-                  Just (TypeName name)
+                  Just . RDQuery $ TypeName name
               | otherwise = Nothing
           go (EThingWith _ _ thingName _) _
               | Just name <- getQName thingName, name == queryExport =
-                  Just (TypeName name) -- FIXME: what about typeclasses?
+                  Just . RDQuery $ TypeName name
+                  -- FIXME: what about typeclasses?
               | otherwise = Nothing
-          -- FIXME: ignoring module reexports for now
-          go (EModuleContents _ _) _ = Nothing
-matchHQuery ast@HaskellAST{ imports = imports } (IName queryImport) =
+          go (EModuleContents _ moduleName) _
+              | getModuleName moduleName == queryExport =
+                  Just . RHQuery $ IName queryExport
+              | otherwise = Nothing
+matchHQuery HaskellAST{ imports = imports } (IName queryImport) =
     case filter pred imports of
       [] -> Nothing
       is -> Just $ ImportMatch is
-    where pred d@ImportDecl{ importModule = ModuleName _ importName } =
-              pack importName == queryImport
+    where pred ImportDecl {..} = elem queryImport
+              [ getModuleName importModule
+              , fromMaybe mempty (getModuleName <$> importAs)
+              ]
 
 -- | match a query on an AST's body
 matchDQuery :: [Decl SrcSpanInfo] -> DQuery -> Maybe (QueryResult HaskellAST)
