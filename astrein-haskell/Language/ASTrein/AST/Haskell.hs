@@ -1,8 +1,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings, PatternGuards, RecordWildCards #-}
-module Language.ASTrein.AST.Haskell {-(HaskellAST(..))-} where
+module Language.ASTrein.AST.Haskell (HaskellAST(..)) where
 
 import Language.ASTrein.AST
+import Language.ASTrein.AST.Haskell.Name
 import Language.ASTrein.AST.Template
 import Language.Haskell.Exts
 
@@ -139,27 +140,10 @@ matchDQuery decls query =
 -- match a DQuery on a toplevel declaration
 matchDQuery' :: DQuery -> Decl SrcSpanInfo -> Maybe (Decl SrcSpanInfo)
 matchDQuery' (TypeName queryName) tDecl
-    -- type declarations
-    | TypeDecl _ dHead _ <- tDecl
-    , getDeclHeadName dHead == queryName = Just tDecl
-    -- data declarations
-    | DataDecl _ _ _ dHead _ _ <- tDecl
-    , getDeclHeadName dHead == queryName = Just tDecl
-    -- GADT declarations
-    | GDataDecl _ _ _ dHead _ _ _ <- tDecl
-    , getDeclHeadName dHead == queryName = Just tDecl
-    -- class declarations' members (associated types)
+    | getTypeDeclName tDecl == Just queryName = Just tDecl
+    -- class declarations' members (associated types and data declarations)
     | ClassDecl _ _ _ _ (Just decls) <- tDecl
     , matchClassDecls queryName decls = Just tDecl
-    -- type family declarations
-    | TypeFamDecl _ dHead _ _ <- tDecl
-    , getDeclHeadName dHead == queryName = Just tDecl
-    -- closed type family declarations
-    | ClosedTypeFamDecl _ dHead _ _ _ <- tDecl
-    , getDeclHeadName dHead == queryName = Just tDecl
-    -- data family declarations
-    | DataFamDecl _ _ dHead _ <- tDecl
-    , getDeclHeadName dHead == queryName = Just tDecl
     | otherwise = Nothing
 matchDQuery' (ClassName queryName) tDecl
     -- class declarations
@@ -192,26 +176,19 @@ matchDQuery' (Instance queryClass queryName) tDecl
           matchIHead (IHApp _ (IHCon _ qn) t) =
               (,) <$> getQName qn <*> getTypeName t
           matchIHead _ = Nothing
--- TODO: value constructors
+-- TODO: fixity declarations
 matchDQuery' (FuncName queryName) tDecl
-    -- normal functions
-    | FunBind _ (Match _ fName _ _ _:_) <- tDecl --
-    , getName fName == queryName = Just tDecl
-    -- functions in infix notation
-    | FunBind _ (InfixMatch _ _ fName _ _ _:_) <- tDecl
-    , getName fName == queryName = Just tDecl
-    -- non-functions binding to a simple name
-    | PatBind _ (PVar _ fName) _ _ <- tDecl
-    , getName fName == queryName = Just tDecl
-    -- foreign import declarations
-    | ForImp _ _ _ _ fName _ <- tDecl
-    , getName fName == queryName = Just tDecl
+    -- "normal" toplevel value declarations
+    | getValueDeclName tDecl == Just queryName = Just tDecl
+    -- data constructors
+    | Just cNames <- getValueConsNames tDecl
+    , queryName `elem` cNames  = Just tDecl
+    -- record fields
+    | Just fNames <- getRecordFieldNames tDecl
+    , queryName `elem` fNames  = Just tDecl
     -- type signatures for toplevel declarations
     | TypeSig _ fNames _ <- tDecl
     , queryName `elem` map getName fNames = Just tDecl
-    -- class declarations' members
-    | ClassDecl _ _ _ _ (Just decls) <- tDecl
-    , matchClassDecls queryName decls = Just tDecl
     -- pattern synonyms can be used as values/patterns
     | PatSyn _ (PApp _ cName _) _ _ <- tDecl
     , Just constructorName <- getQName cName
@@ -219,6 +196,9 @@ matchDQuery' (FuncName queryName) tDecl
     -- pattern synonyms also have type signatures
     | PatSynSig _ cName _ _ _ _ <- tDecl
     , getName cName == queryName = Just tDecl
+    -- class declarations' members
+    | ClassDecl _ _ _ _ (Just decls) <- tDecl
+    , matchClassDecls queryName decls = Just tDecl
     | otherwise = Nothing
 
 -- | check whether a class declaration contains a name somewhere
@@ -231,42 +211,6 @@ matchClassDecls queryName = any matchClassDecl
           matchClassDecl (ClsTyFam _ dHead _ _) =
               getDeclHeadName dHead == queryName
           matchClassDecl _ = False
-
--- | get a textual representation of a module name
-getModuleName :: ModuleName a -> Text
-getModuleName (ModuleName _ name) = pack name
-
--- | get a textual representation of a name
-getName :: Name a -> Text
-getName (Ident _ name) = pack name -- TODO: find differences between the cases
-getName (Symbol _ name) = pack name
-
--- | get a textual representation of a (possibly qualified name)
-getQName :: QName a -> Maybe Text
-getQName (UnQual _ name) = Just $ getName name
-getQName (Qual _ mName name) =
-    Just $ getModuleName mName <> "." <> getName name
-getQName _ = Nothing
-
--- | get a textual representation of a declaration head's name
-getDeclHeadName :: DeclHead a -> Text
-getDeclHeadName (DHead _ tName) = getName tName
-getDeclHeadName (DHInfix _ _ tName) = getName tName
-getDeclHeadName (DHParen _ tHead) = getDeclHeadName tHead
-getDeclHeadName (DHApp _ tHead _) = getDeclHeadName tHead
-
--- | get a textual representation of a type's name
--- TODO: maybe we should return a result for everything? Or should we restrict
--- outselves to TyApp and TyCon, along with TyParen?
-getTypeName :: Type a -> Maybe Text
-getTypeName (TyForall _ _ _ t) = getTypeName t
-getTypeName (TyApp _ t _) = getTypeName t
-getTypeName (TyCon _ qn) = getQName qn
-getTypeName (TyParen _ t) = getTypeName t
-getTypeName (TyInfix _ _ qn _) = getQName qn
-getTypeName (TyKind _ t _) = getTypeName t
-getTypeName (TyBang _ _ _ t) = getTypeName t
-getTypeName _ = Nothing
 
 -- | render the matches on an AST
 haskellRender :: ASTMatches HaskellAST -> Text
