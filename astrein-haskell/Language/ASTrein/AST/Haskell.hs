@@ -176,7 +176,6 @@ matchDQuery' (Instance queryClass queryName) tDecl
           matchIHead (IHApp _ (IHCon _ qn) t) =
               (,) <$> getQName qn <*> getTypeName t
           matchIHead _ = Nothing
--- TODO: fixity declarations
 matchDQuery' (FuncName queryName) tDecl
     -- "normal" toplevel value declarations
     | getValueDeclName tDecl == Just queryName = Just tDecl
@@ -196,6 +195,9 @@ matchDQuery' (FuncName queryName) tDecl
     -- pattern synonyms also have type signatures
     | PatSynSig _ cName _ _ _ _ <- tDecl
     , getName cName == queryName = Just tDecl
+    -- fixity declarations for operators
+    | InfixDecl _ _ _ ops <- tDecl
+    , queryName `elem` map getOpName ops = Just tDecl
     -- class declarations' members
     | ClassDecl _ _ _ _ (Just decls) <- tDecl
     , matchClassDecls queryName decls = Just tDecl
@@ -229,6 +231,12 @@ haskellRender (ASTMatches fileName fileContents (Just res)) =
           groupMatches m1@TypeSig{} ([m2@FunBind{}]:ms) =
               [m1,m2]:ms
           groupMatches m1@TypeSig{} ([m2@PatBind{}]:ms) =
+              [m1,m2]:ms
+          groupMatches m1@InfixDecl{} ([m2@TypeSig{}]:ms) =
+              [m1,m2]:ms
+          groupMatches m1@InfixDecl{} ([m2@FunBind{}]:ms) =
+              [m1,m2]:ms
+          groupMatches m1@InfixDecl{} ([m2@PatBind{}]:ms) =
               [m1,m2]:ms
           groupMatches m ms = [m]:ms
 haskellRender (ASTMatches fileName _ Nothing) =

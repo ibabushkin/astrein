@@ -114,3 +114,8 @@ getGadtDeclName (GadtDecl _ gName _ _) = getName gName
 getGadtDeclRecordFields :: GadtDecl a -> [Text]
 getGadtDeclRecordFields (GadtDecl _ _ (Just fs) _) = concatMap getFieldNames fs
 getGadtDeclRecordFields _ = []
+
+-- | get a textual representation of an operator's name.
+getOpName :: Op a -> Text
+getOpName (VarOp _ name) = getName name
+getOpName (ConOp _ name) = getName name
