@@ -112,10 +112,11 @@ matchHQuery ast (EName queryExport)
               | Just name <- getQName typeName, name == queryExport =
                   Just . RDQuery $ TypeName name
               | otherwise = Nothing
-          go (EThingWith _ _ thingName _) _
+          go (EThingWith _ _ thingName cNames) _
               | Just name <- getQName thingName, name == queryExport =
                   Just . RDQuery $ TypeName name
-                  -- FIXME: what about typeclasses?
+              | names <- map getCName cNames, queryExport `elem` names =
+                  Just . RDQuery $ FuncName queryExport
               | otherwise = Nothing
           go (EModuleContents _ moduleName) _
               | getModuleName moduleName == queryExport =

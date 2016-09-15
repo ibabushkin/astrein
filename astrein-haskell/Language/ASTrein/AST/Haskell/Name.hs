@@ -62,12 +62,17 @@ getName :: Name a -> Text
 getName (Ident _ name) = pack name -- TODO: find differences between the cases
 getName (Symbol _ name) = pack name
 
--- | get a textual representation of a (possibly qualified name)
+-- | get a textual representation of a (possibly qualified) name
 getQName :: QName a -> Maybe Text
 getQName (UnQual _ name) = Just $ getName name
 getQName (Qual _ mName name) =
     Just $ getModuleName mName <> "." <> getName name
 getQName _ = Nothing
+
+-- | get a textual representation of an exported name
+getCName :: CName a -> Text
+getCName (VarName _ vName) = getName vName
+getCName (ConName _ cName) = getName cName
 
 -- | get a textual representation of a declaration head's name
 getDeclHeadName :: DeclHead a -> Text
