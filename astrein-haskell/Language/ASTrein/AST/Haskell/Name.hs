@@ -25,6 +25,7 @@ getValueDeclName (FunBind _ (InfixMatch _ _ fName _ _ _:_)) =
     Just $ getName fName
 getValueDeclName (PatBind _ (PVar _ fName) _ _) = Just $ getName fName
 getValueDeclName (ForImp _ _ _ _ fName _) = Just $ getName fName
+getValueDeclName _ = Nothing
 
 -- | check for a data declaration, and optionally get the name of all value
 -- constructors defined by it.
