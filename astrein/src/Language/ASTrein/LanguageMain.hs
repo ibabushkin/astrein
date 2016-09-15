@@ -45,7 +45,7 @@ options =
     , Option "h" ["help"]
         (NoArg (\_ -> do
             prg <- getProgName
-            let header = prg ++ " 0.2.0.0\nUSAGE: " ++
+            let header = prg ++ " 0.6.1.0\nUSAGE: " ++
                     prg ++ " [OPTION(S)] FILE(S)\nOPTIONS:"
             showError (pack $ usageInfo header (options :: Opt a))
             exitSuccess))

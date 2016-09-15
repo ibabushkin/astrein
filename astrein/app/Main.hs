@@ -13,7 +13,7 @@ import System.Process (spawnProcess, waitForProcess)
 showHelp :: Bool -> IO a
 showHelp success = do
     prg <- getProgName
-    let header = prg ++ " 0.2.0.0\nUSAGE: " ++ prg ++
+    let header = prg ++ " 0.4.0.0\nUSAGE: " ++ prg ++
             " [SUBCOMMAND [SUBCOMMAND-OPTION(S)] FILE(S)|OPTION(S)]\nOPTIONS:"
     showError (pack $ usageInfo header options)
     if success then exitSuccess else exitFailure
