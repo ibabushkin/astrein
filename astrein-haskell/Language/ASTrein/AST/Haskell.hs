@@ -115,6 +115,8 @@ matchHQuery ast (EName queryExport)
           go (EThingWith _ _ thingName cNames) _
               | Just name <- getQName thingName, name == queryExport =
                   Just . RDQuery $ TypeName name
+                  -- FIXME: as soon as we allow alternatives in queries, add
+                  -- `ClassName` here!
               | names <- map getCName cNames, queryExport `elem` names =
                   Just . RDQuery $ FuncName queryExport
               | otherwise = Nothing
