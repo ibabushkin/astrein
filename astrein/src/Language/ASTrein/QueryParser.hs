@@ -6,43 +6,43 @@ import Data.Attoparsec.Text
 import Data.Text (Text)
 import qualified Data.Text as T
 
-{-
-   We are parsing queries in an incredibly simple fashion.
-   Each query consists of one or more alternatives. These are separated
-   by the string " | ".
--}
-
+-- | wrap a parser in parens.
 parensParser :: Parser Query -> Parser Query
 parensParser parser = char '(' *> skipSpace *> parser <* skipSpace <* char ')'
 
+-- | a datatype representing a query, as it is parsed, with no semantic
+-- information attached whatsoever.
 data Query
-    = QueryToken Char [Text]
+    = QueryTerm Char [Text] -- ^ a single query term
     | QueryCombinator Char Query Query
     deriving (Eq, Show)
 
+-- | parse a query from a textual representation
 parseQuery :: Text -> Maybe Query
 parseQuery = either (const Nothing) Just . parseOnly queryParser
 
-parseQuery' = parseOnly queryParser
-
-tokenParser :: Parser Query
-tokenParser = do
+-- | parse a single query term
+termParser :: Parser Query
+termParser = do
     sep <- anyChar
     body <- takeWhile1 (`notElem` [' ','(',')'])
-    return $ QueryToken sep (T.split (== sep) body)
+    return $ QueryTerm sep (T.split (== sep) body)
 
+-- | parse a linear chain of the same combinator
 combinatorParser :: Parser Query
 combinatorParser = do
     left <- recQueryParser
-    skipSpace
-    sep <- anyChar
-    skipSpace
-    right <- recQueryParser
-    return $ QueryCombinator sep left right
+    sep <- getSeparator
+    right <- recQueryParser `sepBy1` separator sep
+    return $ foldl (QueryCombinator sep) left right
+    where separator c = skipSpace *> char c *> skipSpace
+          getSeparator = skipSpace *> anyChar <* skipSpace
 
+-- | parse a query that can be used as part of a nested query.
 recQueryParser :: Parser Query
 recQueryParser = choice
-    [ parensParser recQueryParser, parensParser combinatorParser, tokenParser]
+    [ parensParser recQueryParser, parensParser combinatorParser, termParser]
 
+-- | parse a query as it has been entered by the user.
 queryParser :: Parser Query
 queryParser = combinatorParser <|> recQueryParser
