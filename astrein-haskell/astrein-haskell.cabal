@@ -16,7 +16,7 @@ library
   exposed-modules:     Language.ASTrein.AST.Haskell
                      , Language.ASTrein.AST.Haskell.Name
   build-depends:       attoparsec >= 0.13.0.2
-                     , astrein == 0.4.0.0
+                     , astrein == 0.4.1.0
                      , base >= 4.7 && < 5
                      , haskell-src-exts >= 1.18.2
                      , text >= 1.2.2.1
@@ -27,7 +27,7 @@ executable astrein-haskell
   hs-source-dirs:         app
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
-                     , astrein == 0.4.0.0
+                     , astrein == 0.4.1.0
                      , astrein-haskell == 0.6.1.0
                      , haskell-src-exts >= 1.18.2
                      , text >= 1.2.2.1
