@@ -1,5 +1,19 @@
 {-# LANGUAGE OverloadedStrings, TypeFamilies #-}
-module Language.ASTrein.AST where
+module Language.ASTrein.AST
+    ( AST(..)
+    , ParseResult
+    , ASTMatches(..)
+    , FileMatches
+    , MatchOutput
+    , parseAST
+    , performMatch
+    , Parsers(..)
+    , elementParser
+    , element2Parser
+    , chainingParser
+    , nestedParser
+    , toplevelParser
+    ) where
 
 import Control.Applicative ((<|>))
 
@@ -25,10 +39,6 @@ type FileMatches a = ParseResult (ASTMatches a)
 -- | a MatchOutput is what gets returned by an action working on multiple files
 -- and matching a query which possibly could not be parsed
 type MatchOutput a = Maybe [FileMatches a]
-
--- | an ASTOutput is what gets returred by an action working on multiple files
--- and parsing their AST's
-type ASTOutput a = [ParseResult a]
 
 -- | a typeclass associating a type for a language-specific AST with
 -- a type used to query it and a way to obtain such queries from textual input

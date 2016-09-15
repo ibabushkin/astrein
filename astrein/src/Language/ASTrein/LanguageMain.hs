@@ -59,13 +59,16 @@ options =
 type Dispatcher a = Options a -> [FilePath] -> IO [Text]
 
 -- | a generic Dispatcher
-dispatchMatch :: forall a. AST a => Dispatcher a
+dispatchMatch :: forall a. (AST a, Show a) => Dispatcher a
 dispatchMatch (Options (Just (QueryText queryText)) verbose) files =
     (performMatch queryText files :: IO (MatchOutput a)) >>= render
     where render (Just a) =
               filter (/= mempty) <$> mapM (renderFileMatches verbose) a
           render Nothing = crash "error: query parsing failed"
-dispatchMatch _ _ = crash "todo: AST dumping yet to be implemented"
+dispatchMatch _ files = do
+    contents <- mapM TIO.readFile files
+    return $ map render (zipWith parseAST files contents :: [ParseResult a])
+    where render = pack . show
 
 -- | a main function to use in a subprogram for a specific language
 languageMain :: AST a => Dispatcher a -> IO ()
