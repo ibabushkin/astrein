@@ -4,7 +4,8 @@ module Language.ASTrein.AST.Haskell (HaskellAST(..)) where
 
 import Language.ASTrein.AST
 import Language.ASTrein.AST.Haskell.Name
-import Language.ASTrein.AST.Template
+import Language.ASTrein.QueryParser (RawQuery)
+import qualified Language.ASTrein.QueryParser as QP
 import Language.Haskell.Exts
 
 import Data.List (stripPrefix, intercalate)
@@ -48,21 +49,20 @@ instance AST HaskellAST where
         | ImportMatch [ImportDecl SrcSpanInfo]
         | DeclMatch [Decl SrcSpanInfo]
         deriving (Show, Eq)
+    verifyQuery = verifyHaskellQuery
     parseAST' = parseHaskellAST
-    queryParsers = Parsers
-        { elements =
-            [ elementParser "m." (HName . MName)
-            , elementParser "e." (HName . EName)
-            , elementParser "i." (HName . IName)
-            , typeParser (DName . TypeName)
-            , classParser (DName . ClassName)
-            , instanceParser (\a b -> DName (Instance a b))
-            , valueParser (DName . FuncName)
-            ]
-        , chains = [ chainingParser " - " Range ]
-        }
     match = haskellMatchAST
     renderMatches = haskellRender
+
+-- | verify a Haskell query from a pre-parsed representation.
+verifyHaskellQuery :: RawQuery -> Maybe (Query HaskellAST)
+verifyHaskellQuery (QP.Range s e) =
+    Range <$> verifyHaskellQuery s <*> verifyHaskellQuery e
+verifyHaskellQuery (QP.TypeName n) = Just . DName $ TypeName n
+verifyHaskellQuery (QP.ClassName n) = Just . DName $ ClassName n
+verifyHaskellQuery (QP.Instance c t) = Just . DName $ Instance c t
+verifyHaskellQuery (QP.FuncName n) = Just . DName $ FuncName n
+verifyHaskellQuery _ = Nothing
 
 -- | parse a Haskell AST from a file
 parseHaskellAST :: Text -> Maybe HaskellAST
