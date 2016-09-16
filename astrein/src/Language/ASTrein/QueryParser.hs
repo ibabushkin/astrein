@@ -7,6 +7,7 @@ module Language.ASTrein.QueryParser
     , pattern Instance
     , pattern Range
     , pattern Nest
+    , pattern Named
     , parseQuery
     ) where
 
@@ -24,7 +25,7 @@ parensParser parser = char '(' *> skipSpace *> parser <* skipSpace <* char ')'
 -- information attached whatsoever.
 data RawQuery
     = QueryTerm Char [Text] -- ^ a single query term
-    | QueryCombinator Char RawQuery RawQuery
+    | QueryCombinator Char RawQuery RawQuery -- ^ a combinator of two queries
     deriving (Eq, Show)
 
 -- | our default for function names: a (sub)query, containing no spaces or
@@ -46,6 +47,10 @@ pattern Range s e = QueryCombinator '-' s e
 -- | our default for a nesting combinator: a (sub)query, which separates two
 -- subqueries by a dot and some surrounding whitespace.
 pattern Nest t s = QueryCombinator '.' t s
+
+-- | our default pattern for "named things": a (sub)query, which still
+-- consists of a single `QueryTerm`.
+pattern Named n t = QueryTerm '/' [n, t]
 
 -- | parse a query from a textual representation
 parseQuery :: Text -> Maybe RawQuery

@@ -62,6 +62,9 @@ verifyHaskellQuery (QP.TypeName n) = Just . DName $ TypeName n
 verifyHaskellQuery (QP.ClassName n) = Just . DName $ ClassName n
 verifyHaskellQuery (QP.Instance c t) = Just . DName $ Instance c t
 verifyHaskellQuery (QP.FuncName n) = Just . DName $ FuncName n
+verifyHaskellQuery (QP.Named "module" n) = Just . HName $ MName n
+verifyHaskellQuery (QP.Named "export" n) = Just . HName $ EName n
+verifyHaskellQuery (QP.Named "import" n) = Just . HName $ IName n
 verifyHaskellQuery _ = Nothing
 
 -- | parse a Haskell AST from a file
