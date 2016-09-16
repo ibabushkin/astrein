@@ -125,3 +125,11 @@ getGadtDeclRecordFields _ = []
 getOpName :: Op a -> Text
 getOpName (VarOp _ name) = getName name
 getOpName (ConOp _ name) = getName name
+
+-- | get a textual representation of an import specifications's name.
+getImportSpecNames :: ImportSpec a -> [Text]
+getImportSpecNames (IVar _ name) = [getName name]
+getImportSpecNames (IAbs _ _ name) = [getName name]
+getImportSpecNames (IThingAll _ name) = [getName name]
+getImportSpecNames (IThingWith _ name cNames) =
+    getName name : map getCName cNames

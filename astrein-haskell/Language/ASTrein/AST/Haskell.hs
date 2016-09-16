@@ -131,10 +131,12 @@ matchHQuery HaskellAST{ imports = imports } (IName queryImport) =
     case filter pred imports of
       [] -> Nothing
       is -> Just $ ImportMatch is
-    where pred ImportDecl {..} = queryImport `elem`
-              [ getModuleName importModule
-              , fromMaybe mempty (getModuleName <$> importAs)
-              ]
+      where pred ImportDecl {..} = queryImport == getModuleName importModule
+                || Just queryImport == (getModuleName <$> importAs)
+                || queryImport `elem` getImportNames importSpecs
+            getImportNames (Just (ImportSpecList _ _ iSpecs)) =
+                concatMap getImportSpecNames iSpecs
+            getImportNames _ = []
 
 -- | match a query on an AST's body
 matchDQuery :: [Decl SrcSpanInfo] -> DQuery -> Maybe (QueryResult HaskellAST)
