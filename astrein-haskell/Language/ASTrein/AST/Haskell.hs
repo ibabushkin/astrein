@@ -111,9 +111,12 @@ matchHQuery ast (EName queryExport)
               | Just name <- getQName varName, name == queryExport =
                   Just . RDQuery $ FuncName name
               | otherwise = Nothing
-          go (EAbs _ _ typeName) _
+          go (EAbs _ namespace typeName) _
               | Just name <- getQName typeName, name == queryExport =
-                  Just . RDQuery $ TypeName name
+                  case namespace of
+                    NoNamespace _ -> Just . RDQuery $ ClassName name
+                    TypeNamespace _ -> Just . RDQuery $ TypeName name
+                    PatternNamespace _ -> Just . RDQuery $ FuncName name
               | otherwise = Nothing
           go (EThingWith _ _ thingName cNames) _
               | Just name <- getQName thingName, name == queryExport =
