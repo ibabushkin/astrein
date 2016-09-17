@@ -37,7 +37,7 @@ data DQuery
     | FuncName Text -- ^ query for a function
     | Range DQuery DQuery -- ^ query for a range of declarations
     | Or DQuery DQuery -- ^ query for a set of alternative subqueries
-    | Nest Text Text -- ^ search for an internal declaration
+    | Nest Text DQuery -- ^ search for an internal declaration
     deriving (Show, Eq)
 
 instance AST HaskellAST where
@@ -64,7 +64,7 @@ verifyHaskellQuery q = DName <$> verifyDQuery q
 
 -- | verify a DQuery from a pre-parsed representation.
 verifyDQuery :: RawQuery -> Maybe DQuery
-verifyDQuery (QP.Nest (QP.FuncName o) (QP.FuncName i)) = Just $ Nest o i
+verifyDQuery (QP.Nest (QP.FuncName o) i) = Nest o <$> verifyDQuery i
 verifyDQuery (QP.Or l r) = Or <$> verifyDQuery l <*> verifyDQuery r
 verifyDQuery (QP.Range s e) = Range <$> verifyDQuery s <*> verifyDQuery e
 verifyDQuery (QP.TypeName n) = Just $ TypeName n
@@ -153,7 +153,7 @@ matchDQuery (Range q1 q2) decls
     | otherwise = Nothing
 matchDQuery (Nest outer inner) decls
     | Just (DeclMatch res) <- matchDQuery (FuncName outer) decls =
-        DeclMatch <$> mconcat (map (matchNestedDecl (FuncName inner)) res)
+        DeclMatch <$> mconcat (map (matchNestedDecl inner) res)
 matchDQuery query decls =
     case mapMaybe (matchDQuery' query) decls of
       [] -> Nothing
