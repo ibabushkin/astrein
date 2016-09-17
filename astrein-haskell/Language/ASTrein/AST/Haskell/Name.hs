@@ -2,9 +2,9 @@
 module Language.ASTrein.AST.Haskell.Name where
 
 import Data.Monoid ((<>))
-import Data.Text (Text, pack, unpack)
+import Data.Text (Text, pack)
 
-import Language.Haskell.Exts
+import Language.Haskell.Exts hiding (name)
 
 -- | check for a type declaration, and optionally get it's name.
 -- this includes data declarations and other things that yield a type.

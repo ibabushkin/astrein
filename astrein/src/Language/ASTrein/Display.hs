@@ -25,7 +25,7 @@ renderFileMatches :: AST a => Bool -> FileMatches a -> IO Text
 renderFileMatches verbose ms
     | verbose || matchPresent ms = renderParseResult renderMatches ms
     | otherwise = mempty
-    where matchPresent (Right ms) = isJust (matches ms)
+    where matchPresent (Right ms') = isJust (matches ms')
           matchPresent _ = False
 
 

@@ -6,14 +6,13 @@ import Language.ASTrein.AST
 import Language.ASTrein.AST.Haskell.Name
 import Language.ASTrein.QueryParser (RawQuery)
 import qualified Language.ASTrein.QueryParser as QP
-import Language.Haskell.Exts
+import Language.Haskell.Exts hiding (fileName, name)
 
 import Data.List (stripPrefix, intercalate)
-import Data.Maybe (fromMaybe, mapMaybe)
+import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>))
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
 
 -- | a Haskell AST
 data HaskellAST = HaskellAST
@@ -255,7 +254,7 @@ haskellRender (ASTMatches fileName _ Nothing) =
 
 -- | show a part of a file denoted by a SrcSpanInfo
 renderSrcSpanInfo :: Text -> SrcSpanInfo -> Text
-renderSrcSpanInfo text (SrcSpanInfo (SrcSpan _ sl sc el ec) _) =
+renderSrcSpanInfo text (SrcSpanInfo (SrcSpan _ sl _ el _) _) =
     (T.unlines . take (el - sl + 1) . drop (sl - 1) . T.lines) text
 
 -- | get a SrcSpanInfo from a Decl

@@ -8,7 +8,7 @@ module Language.ASTrein.LanguageMain
 import Data.Text (Text, pack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Data.Monoid((<>))
+-- import Data.Monoid((<>))
 
 import Language.ASTrein.AST
 import Language.ASTrein.Display
@@ -45,7 +45,7 @@ options =
     , Option "h" ["help"]
         (NoArg (\_ -> do
             prg <- getProgName
-            let header = prg ++ " 0.6.1.0\nUSAGE: " ++
+            let header = prg ++ " 1.0.0.0\nUSAGE: " ++
                     prg ++ " [OPTION(S)] FILE(S)\nOPTIONS:"
             showError (pack $ usageInfo header (options :: Opt a))
             exitSuccess))
@@ -60,10 +60,10 @@ type Dispatcher a = Options a -> [FilePath] -> IO [Text]
 
 -- | a generic Dispatcher
 dispatchMatch :: forall a. (AST a, Show a) => Dispatcher a
-dispatchMatch (Options (Just (QueryText queryText)) verbose) files =
+dispatchMatch (Options (Just (QueryText queryText)) verb) files =
     (performMatch queryText files :: IO (MatchOutput a)) >>= render
     where render (Just a) =
-              filter (/= mempty) <$> mapM (renderFileMatches verbose) a
+              filter (/= mempty) <$> mapM (renderFileMatches verb) a
           render Nothing = crash "error: query parsing failed"
 dispatchMatch _ files = do
     contents <- mapM TIO.readFile files

@@ -7,6 +7,7 @@ module Language.ASTrein.QueryParser
     , pattern Instance
     , pattern Range
     , pattern Nest
+    , pattern Or
     , pattern Named
     , parseQuery
     ) where
@@ -30,26 +31,37 @@ data RawQuery
 
 -- | our default for function names: a (sub)query, containing no spaces or
 -- parens, prefixed by a dot.
+pattern FuncName :: Text -> RawQuery
 pattern FuncName n = QueryTerm '.' [n]
 -- | our default for type names: a (sub)query, containing no spaces or parens,
 -- prefixed by a colon.
+pattern TypeName :: Text -> RawQuery
 pattern TypeName n = QueryTerm ':' [n]
 -- | our default for class/interface names: a (sub)query, containing no
 -- spaces or parens, prefixed by a comma.
+pattern ClassName :: Text -> RawQuery
 pattern ClassName n = QueryTerm ',' [n]
 -- | our default for class/interface instances: a (sub)query, containing no
 -- spaces or parens, of the form ";classname;typename".
+pattern Instance :: Text -> Text -> RawQuery
 pattern Instance c n = QueryTerm ';' [c,n]
 
 -- | our default for a range combinator: a (sub)query, which separates two
 -- subqueries by a dash and some surrounding whitespace.
+pattern Range :: RawQuery -> RawQuery -> RawQuery
 pattern Range s e = QueryCombinator '-' s e
 -- | our default for a nesting combinator: a (sub)query, which separates two
 -- subqueries by a dot and some surrounding whitespace.
+pattern Nest :: RawQuery -> RawQuery -> RawQuery
 pattern Nest t s = QueryCombinator '.' t s
+-- | our default for alternative patterns: a (sub)query, which separates two
+-- subqueries by a pipe and some surrounding whitespace.
+pattern Or :: RawQuery -> RawQuery -> RawQuery
+pattern Or l r = QueryCombinator '|' l r
 
 -- | our default pattern for "named things": a (sub)query, which still
 -- consists of a single `QueryTerm`.
+pattern Named :: Text -> Text -> RawQuery
 pattern Named n t = QueryTerm '/' [n, t]
 
 -- | parse a query from a textual representation

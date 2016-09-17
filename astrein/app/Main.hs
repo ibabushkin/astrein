@@ -13,7 +13,7 @@ import System.Process (spawnProcess, waitForProcess)
 showHelp :: Bool -> IO a
 showHelp success = do
     prg <- getProgName
-    let header = prg ++ " 0.4.1.0\nUSAGE: " ++ prg ++
+    let header = prg ++ " 1.0.0.0\nUSAGE: " ++ prg ++
             " [SUBCOMMAND [SUBCOMMAND-OPTION(S)] FILE(S)|OPTION(S)]\nOPTIONS:"
     showError (pack $ usageInfo header options)
     if success then exitSuccess else exitFailure
@@ -34,7 +34,7 @@ options =
 main :: IO ()
 main = do
     args <- getArgs
-    let (actions, files, _) = getOpt RequireOrder options args
+    let (actions, _, _) = getOpt RequireOrder options args
     interpret args . fromMaybe Subcommand . listToMaybe $ reverse actions
 
 -- | dispatch mode

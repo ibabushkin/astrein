@@ -9,11 +9,7 @@ module Language.ASTrein.AST
     , performMatch
     ) where
 
-import Control.Applicative ((<|>))
-
-import Data.Attoparsec.Text hiding (match)
 import Data.Text (Text)
-import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 import Language.ASTrein.QueryParser (RawQuery, parseQuery)
