@@ -35,13 +35,14 @@ data DQuery
     | ClassName Text -- ^ query for a typeclass
     | Instance Text Text -- ^ query for some instance
     | FuncName Text -- ^ query for a function
+    | Range DQuery DQuery -- ^ query for a range of declarations
+    | Or DQuery DQuery -- ^ query for a set of alternative subqueries
     deriving (Show, Eq)
 
 instance AST HaskellAST where
     data Query HaskellAST
         = HName HQuery
         | DName DQuery
-        | Range (Query HaskellAST) (Query HaskellAST)
         deriving (Show, Eq)
     data QueryResult HaskellAST
         = ModuleNameMatch
@@ -56,15 +57,20 @@ instance AST HaskellAST where
 -- | verify a Haskell query from a pre-parsed representation.
 verifyHaskellQuery :: RawQuery -> Maybe (Query HaskellAST)
 verifyHaskellQuery (QP.Range s e) =
-    Range <$> verifyHaskellQuery s <*> verifyHaskellQuery e
-verifyHaskellQuery (QP.TypeName n) = Just . DName $ TypeName n
-verifyHaskellQuery (QP.ClassName n) = Just . DName $ ClassName n
-verifyHaskellQuery (QP.Instance c t) = Just . DName $ Instance c t
-verifyHaskellQuery (QP.FuncName n) = Just . DName $ FuncName n
+    DName <$> (Range <$> verifyDQuery s <*> verifyDQuery e)
+verifyHaskellQuery (QP.Or l r) =
+    DName <$> (Or <$> verifyDQuery l <*> verifyDQuery r)
 verifyHaskellQuery (QP.Named "module" n) = Just . HName $ MName n
 verifyHaskellQuery (QP.Named "export" n) = Just . HName $ EName n
 verifyHaskellQuery (QP.Named "import" n) = Just . HName $ IName n
 verifyHaskellQuery _ = Nothing
+
+verifyDQuery :: RawQuery -> Maybe DQuery
+verifyDQuery (QP.TypeName n) = Just $ TypeName n
+verifyDQuery (QP.ClassName n) = Just $ ClassName n
+verifyDQuery (QP.Instance c t) = Just $ Instance c t
+verifyDQuery (QP.FuncName n) = Just $ FuncName n
+verifyDQuery _ = Nothing
 
 -- | parse a Haskell AST from a file
 parseHaskellAST :: Text -> Maybe HaskellAST
@@ -80,12 +86,7 @@ haskellMatchAST :: Query HaskellAST
                 -> Maybe (QueryResult HaskellAST)
 haskellMatchAST (HName hQuery) ast = matchHQuery ast hQuery
 haskellMatchAST (DName dQuery) ast = matchDQuery (decls ast) dQuery
-haskellMatchAST (Range (DName q1) (DName q2)) HaskellAST{ decls = decls }
-    | Just (DeclMatch xs@(x:_)) <- matchDQuery decls q1
-    , Just decls' <- stripPrefix xs (dropWhile (/= x) decls)
-    , Just (DeclMatch ys) <- matchDQuery decls' q2 =
-        Just . DeclMatch . takeWhile (/= last ys) $ dropWhile (/= x) decls
-    | otherwise = Nothing
+haskellMatchAST _ _ = Nothing
 
 data RecursiveHQuery
     = RDQuery DQuery
@@ -119,9 +120,7 @@ matchHQuery ast (EName queryExport)
               | otherwise = Nothing
           go (EThingWith _ _ thingName cNames) _
               | Just name <- getQName thingName, name == queryExport =
-                  Just . RDQuery $ TypeName name
-                  -- FIXME: as soon as we allow alternatives in queries, add
-                  -- `ClassName` here!
+                  Just . RDQuery $ Or (TypeName name) (ClassName name)
               | names <- map getCName cNames, queryExport `elem` names =
                   Just . RDQuery $ FuncName queryExport
               | otherwise = Nothing
@@ -130,10 +129,10 @@ matchHQuery ast (EName queryExport)
                   Just . RHQuery $ IName queryExport
               | otherwise = Nothing
 matchHQuery HaskellAST{ imports = imports } (IName queryImport) =
-    case filter pred imports of
+    case filter f imports of
       [] -> Nothing
       is -> Just $ ImportMatch is
-      where pred ImportDecl {..} = queryImport == getModuleName importModule
+      where f ImportDecl {..} = queryImport == getModuleName importModule
                 || Just queryImport == (getModuleName <$> importAs)
                 || queryImport `elem` getImportNames importSpecs
             getImportNames (Just (ImportSpecList _ _ iSpecs)) =
@@ -142,6 +141,13 @@ matchHQuery HaskellAST{ imports = imports } (IName queryImport) =
 
 -- | match a query on an AST's body
 matchDQuery :: [Decl SrcSpanInfo] -> DQuery -> Maybe (QueryResult HaskellAST)
+matchDQuery decls (Range q1 q2)
+    | Just (DeclMatch xs@(x:_)) <- matchDQuery decls q1
+    , Just decls' <- stripPrefix xs (dropWhile (/= x) decls)
+    , Just (DeclMatch ys) <- matchDQuery decls' q2
+    , l <- last ys = Just . DeclMatch . (++ [l]) . takeWhile (/= l) $
+        dropWhile (/= x) decls
+    | otherwise = Nothing
 matchDQuery decls query =
     case mapMaybe (matchDQuery' query) decls of
       [] -> Nothing
@@ -149,6 +155,9 @@ matchDQuery decls query =
 
 -- match a DQuery on a toplevel declaration
 matchDQuery' :: DQuery -> Decl SrcSpanInfo -> Maybe (Decl SrcSpanInfo)
+matchDQuery' (Or q1 q2) decl
+    | Just res <- matchDQuery' q1 decl = Just res
+    | otherwise = matchDQuery' q2 decl
 matchDQuery' (TypeName queryName) tDecl
     | getTypeDeclName tDecl == Just queryName = Just tDecl
     -- class declarations' members (associated types and data declarations)
@@ -212,6 +221,7 @@ matchDQuery' (FuncName queryName) tDecl
     | ClassDecl _ _ _ _ (Just decls) <- tDecl
     , matchClassDecls queryName decls = Just tDecl
     | otherwise = Nothing
+matchDQuery' _ _ = Nothing
 
 -- | check whether a class declaration contains a name somewhere
 matchClassDecls :: Text -> [ClassDecl SrcSpanInfo] -> Bool
@@ -247,6 +257,8 @@ haskellRender (ASTMatches fileName fileContents (Just res)) =
           groupMatches m1@InfixDecl{} ([m2@FunBind{}]:ms) =
               [m1,m2]:ms
           groupMatches m1@InfixDecl{} ([m2@PatBind{}]:ms) =
+              [m1,m2]:ms
+          groupMatches m1@PatSynSig{} ([m2@PatSyn{}]:ms) =
               [m1,m2]:ms
           groupMatches m ms = [m]:ms
 haskellRender (ASTMatches fileName _ Nothing) =
