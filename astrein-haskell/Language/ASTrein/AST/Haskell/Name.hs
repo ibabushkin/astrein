@@ -27,6 +27,20 @@ getValueDeclName (PatBind _ (PVar _ fName) _ _) = Just $ getName fName
 getValueDeclName (ForImp _ _ _ _ fName _) = Just $ getName fName
 getValueDeclName _ = Nothing
 
+-- | check for a value declaration, and optionally get it's nested
+-- declarations bound by `where`- and `let`-clauses.
+getValueDeclNestedDecls :: Decl a -> Maybe [Decl a]
+getValueDeclNestedDecls (FunBind _ matches) =
+    mconcat $ map getMatchDecls matches
+getValueDeclNestedDecls (PatBind _ _ _ (Just (BDecls _ d))) = Just d
+getValueDeclNestedDecls _ = Nothing
+
+-- | get nested declarations from a `Match`.
+getMatchDecls :: Match a -> Maybe [Decl a]
+getMatchDecls (Match _ _ _ _ (Just (BDecls _ d))) = Just d
+getMatchDecls (InfixMatch _ _ _ _ _ (Just (BDecls _ d))) = Just d
+getMatchDecls _ = Nothing
+
 -- | check for a data declaration, and optionally get the name of all value
 -- constructors defined by it.
 getValueConsNames :: Decl a -> Maybe [Text]
