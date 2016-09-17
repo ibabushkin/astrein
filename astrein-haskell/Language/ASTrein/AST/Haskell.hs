@@ -58,14 +58,14 @@ instance AST HaskellAST where
 verifyHaskellQuery :: RawQuery -> Maybe (Query HaskellAST)
 verifyHaskellQuery (QP.Range s e) =
     DName <$> (Range <$> verifyDQuery s <*> verifyDQuery e)
-verifyHaskellQuery (QP.Or l r) =
-    DName <$> (Or <$> verifyDQuery l <*> verifyDQuery r)
 verifyHaskellQuery (QP.Named "module" n) = Just . HName $ MName n
 verifyHaskellQuery (QP.Named "export" n) = Just . HName $ EName n
 verifyHaskellQuery (QP.Named "import" n) = Just . HName $ IName n
-verifyHaskellQuery _ = Nothing
+verifyHaskellQuery q = DName <$> verifyDQuery q
 
+-- | verify a DQuery from a pre-parsed representation.
 verifyDQuery :: RawQuery -> Maybe DQuery
+verifyDQuery (QP.Or l r) = Or <$> verifyDQuery l <*> verifyDQuery r
 verifyDQuery (QP.TypeName n) = Just $ TypeName n
 verifyDQuery (QP.ClassName n) = Just $ ClassName n
 verifyDQuery (QP.Instance c t) = Just $ Instance c t
