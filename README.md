@@ -31,13 +31,29 @@ entities, with a notion of what those entities *are*. Support for more advanced
 selectors in the spirit of `cq` is also being worked on, but these bits will
 probably undergo more serious changes in the future.
 
-Currently, a proof-of-concept implementation for Haskell code is present (and
-works quite well), but the main focus is on providing a framework for support
-of a large set of languages, and interaction with user-provided extension
-modules. This would allow to build up query tooling for almost all kinds of
-structured textual data, like configuration files, some plaintext data formats
-like `YAML` or `JSON`. Granted, those formats have their own tooling available,
-but sometimes being able to reuse the same querying syntax is of great value.
+Currently, an implementation for Haskell code is present (and works quite
+well), but the main focus is on providing a framework for support of a large
+set of languages, and interaction with user-provided extension modules. This
+would allow to build up query tooling for almost all kinds of structured
+textual data, like configuration files, some plaintext data formats like `YAML`
+or `JSON`. Granted, those formats have their own tooling available, but
+sometimes being able to reuse the same querying syntax is of great value.
+
+## Features
+ASTrein supports two main query components: `query terms` and `query
+combinators`. These make up the query parsing primitives used to build up a
+simple AST of the query, which is then passed to the various language backends
+that verify it for correctness - that is, check whether the passed raw query
+"makes sense". This system allows for multiple standardized query terms
+representing types, values, typeclasses/interfaces, as well as standardized
+query combinators representing nesting, ranges and alternatives. The various
+backends interpret those loosely and according to their own context, but the
+parsing process is shared and well-defined. For information on the grammar, see
+the [query documentation](https://github.com/ibabushkin/tree/master/astrein/query.md).
+If you need help on the various backends' implementations, see their respective
+query feature docs:
+
+* [Haskell]()
 
 ## Usage
 The main executable, `astrein` can be used to invoke subcommands, which itself
@@ -62,22 +78,6 @@ OPTIONS:
   -h        --help         Show this help.
   -v        --verbose      If passed, more (some) output for non-matches is generated.
 ```
-
-
-At the moment, only a handful of query types are supported by the Haskell
-backend:
-
-* `:Type` queries for type `Type`.
-* `.name` queries for a toplevel binding `name`.
-* `,Class` queries for a typeclass `name`.
-* `;Class;Type` queries for a `Class` instance of type `Type`.
-
-An additional combinator ` - ` is provided, to search for ranges, so
-`:Type1 - :Type2` will query for the inclusive range between the first and the
-second type's definition.
-
-Check out `astrein --help` and `astrein haskell --help` for information on the
-command line tools' usage itself.
 
 # TODO
 See [issues](https://github.com/ibabushkin/astrein/issues).
