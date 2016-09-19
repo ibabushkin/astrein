@@ -8,7 +8,6 @@ module Language.ASTrein.LanguageMain
 import Data.Text (Text, pack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
--- import Data.Monoid((<>))
 
 import Language.ASTrein.AST
 import Language.ASTrein.Display
@@ -22,15 +21,15 @@ newtype QueryText a = QueryText Text
 
 -- | an type representing the data gathered from command line options
 data Options a = Options
-    { query :: Maybe (QueryText a)
-    , verbose :: Bool
+    { query :: Maybe (QueryText a) -- ^ a possibly missing query
+    , verbose :: Bool -- ^ verbosity information
     }
 
 -- | default values for all options
 defaultOptions :: Options a
 defaultOptions = Options Nothing False
 
--- | type of our options function, only defined to safe some typing below
+-- | type of our options function, only defined to save some typing below
 type Opt a = [OptDescr (Options a -> IO (Options a))]
 
 -- | option parsing template for all language executables

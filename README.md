@@ -49,7 +49,7 @@ representing types, values, typeclasses/interfaces, as well as standardized
 query combinators representing nesting, ranges and alternatives. The various
 backends interpret those loosely and according to their own context, but the
 parsing process is shared and well-defined. For information on the grammar, see
-the [query documentation](https://github.com/ibabushkin/tree/master/astrein/query.md).
+the [query documentation](https://github.com/ibabushkin/astrein/blob/master/astrein/query.md).
 If you need help on the various backends' implementations, see their respective
 query feature docs:
 

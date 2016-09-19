@@ -28,7 +28,6 @@ renderFileMatches verbose ms
     where matchPresent (Right ms') = isJust (matches ms')
           matchPresent _ = False
 
-
 -- | render a ParseResult wrapping a type implementing Show
 renderShow :: Show a => ParseResult a -> IO Text
 renderShow = renderParseResult (pack . show)
@@ -38,4 +37,4 @@ renderParseResult :: (a -> Text) -> ParseResult a -> IO Text
 renderParseResult _ (Left file) = do
     showError $ "error: could not parse " <> pack file <> " to an AST"
     return mempty
-renderParseResult renderFunc (Right a) = return $renderFunc a
+renderParseResult renderFunc (Right a) = return $ renderFunc a

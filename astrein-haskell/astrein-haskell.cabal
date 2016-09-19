@@ -1,6 +1,6 @@
 name:                astrein-haskell
 version:             1.0.0.0
-synopsis:            astrein's haskell mode
+synopsis:            ASTrein's haskell backend
 description:         Please see README.md
 homepage:            https://github.com/ibabushkin/astrein#readme
 license:             BSD3
@@ -15,8 +15,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Language.ASTrein.AST.Haskell
                      , Language.ASTrein.AST.Haskell.Name
-  build-depends:       attoparsec >= 0.13.0.2
-                     , astrein == 1.0.0.0
+  build-depends:       astrein == 1.0.0.0
                      , base >= 4.7 && < 5
                      , haskell-src-exts >= 1.18.2
                      , text >= 1.2.2.1
