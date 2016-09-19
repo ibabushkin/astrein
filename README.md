@@ -53,7 +53,7 @@ the [query documentation](https://github.com/ibabushkin/astrein/blob/master/astr
 If you need help on the various backends' implementations, see their respective
 query feature docs:
 
-* [Haskell]()
+* [Haskell](https://github.com/ibabushkin/astrein/blob/master/astrein-haskell/query.md)
 
 ## Usage
 The main executable, `astrein` can be used to invoke subcommands, which itself
