@@ -1,6 +1,6 @@
-name:                astrein-haskell
+name:                astrein-rust
 version:             1.0.0.0
-synopsis:            ASTrein's haskell backend
+synopsis:            ASTrein's rust backend
 description:         Please see README.md
 homepage:            https://github.com/ibabushkin/astrein#readme
 license:             BSD3
@@ -13,11 +13,9 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Language.ASTrein.AST.Haskell
-                     , Language.ASTrein.AST.Haskell.Name
+  exposed-modules:     Language.ASTrein.AST.Rust
   build-depends:       astrein == 1.0.0.0
                      , base >= 4.7 && < 5
-                     , haskell-src-exts >= 1.18.2
                      , text >= 1.2.2.1
   default-language:    Haskell2010
 
@@ -27,8 +25,7 @@ executable astrein-haskell
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , astrein == 1.0.0.0
-                     , astrein-haskell == 1.0.0.0
-                     , haskell-src-exts >= 1.18.2
+                     , astrein-rust == 1.0.0.0
                      , text >= 1.2.2.1
   default-language:    Haskell2010
 
