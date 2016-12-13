@@ -21,7 +21,7 @@ type ParseResult a = Either FilePath a
 data ASTMatches a = ASTMatches
     { name :: FilePath -- ^ the file's name
     , content :: Text -- ^ the file's content
-    , matches :: Maybe (QueryResult a) -- ^ the matches in that file
+    , matches :: Maybe (QueryResult a) -- ^ the matches in the file
     }
 
 -- | FileMatches are ASTMatches that can fail - if the file could not be
@@ -55,8 +55,8 @@ parseAST fileName fileContent = transform $ parseAST' fileContent
           transform Nothing = Left fileName
 
 -- | match a query in textual represenation on an AST taken from a file
--- returns a wraped Nothing on query parsing failure and a Nothing in the list
--- for each file that could not be parsed to an AST.
+-- returns a wrapped Nothing on query parsing failure and a Nothing in the list
+-- for each file that could not be parsed into an AST.
 performMatch :: AST a => Text -> [FilePath] -> IO (MatchOutput a)
 performMatch queryText files
     | Just query <- parseQuery queryText >>= verifyQuery = do
