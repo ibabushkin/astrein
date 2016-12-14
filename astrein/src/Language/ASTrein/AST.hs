@@ -7,9 +7,13 @@ module Language.ASTrein.AST
     , MatchOutput
     , parseAST
     , performMatch
+    , performJSONMatch
     ) where
 
+import Data.Aeson (FromJSON, decode)
+import Data.ByteString.Lazy (fromStrict)
 import Data.Text (Text)
+import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text.IO as TIO
 
 import Language.ASTrein.QueryParser (RawQuery, parseQuery)
@@ -65,3 +69,16 @@ performMatch queryText files
         return . Just $ zipWith3 (transform query) files contents asts
     | otherwise = return Nothing
     where transform q fN fC = fmap (ASTMatches fN fC . match q)
+
+performJSONMatch :: (AST a, FromJSON a)
+                 => Text -> (FilePath -> IO Text) -> [FilePath] -> IO (MatchOutput a)
+performJSONMatch queryText getJSON files
+    | Just query <- parseQuery queryText >>= verifyQuery = do
+        contents <- mapM getJSON files
+        let asts = zipWith getAST files contents
+        return . Just $ zipWith3 (transform query) files contents asts
+    | otherwise = return Nothing
+    where transform q fN fC = fmap (ASTMatches fN fC . match q)
+          getAST fileName content = case decode . fromStrict $ encodeUtf8 content of
+                                      Just ast -> Right ast
+                                      Nothing -> Left fileName

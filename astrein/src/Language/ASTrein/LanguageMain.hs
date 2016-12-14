@@ -5,6 +5,7 @@ module Language.ASTrein.LanguageMain
     , languageMain
     ) where
 
+import Data.Aeson (FromJSON)
 import Data.Text (Text, pack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -61,8 +62,7 @@ type Dispatcher a = Options a -> [FilePath] -> IO [Text]
 dispatchMatch :: forall a. (AST a, Show a) => Dispatcher a
 dispatchMatch (Options (Just (QueryText queryText)) verb) files =
     (performMatch queryText files :: IO (MatchOutput a)) >>= render
-    where render (Just a) =
-              filter (/= mempty) <$> mapM (renderFileMatches verb) a
+    where render (Just a) = filter (/= mempty) <$> mapM (renderFileMatches verb) a
           render Nothing = crash "error: query parsing failed"
 dispatchMatch _ files = do
     contents <- mapM TIO.readFile files
@@ -80,6 +80,18 @@ languageMain dispatch = do
            str <- T.intercalate "\n" <$> dispatch opts files
            cleanPutStrLn str
        else mapM_ putStrLn errors
+
+-- | a generic Dispatcher for JSON sources
+jsonDispatchMatch :: forall a. (AST a, Show a, FromJSON a)
+                  => (FilePath -> IO Text) -> Dispatcher a
+jsonDispatchMatch getJSON (Options (Just (QueryText queryText)) verb) files =
+    (performJSONMatch queryText getJSON files :: IO (MatchOutput a)) >>= render
+    where render (Just a) = filter (/= mempty) <$> mapM (renderFileMatches verb) a
+          render Nothing = crash "error: query parsing failed"
+jsonDispatchMatch getJSON _ files = do
+    contents <- mapM getJSON files
+    return $ map render (zipWith parseAST files contents :: [ParseResult a])
+    where render = pack . show
 
 -- | clean output with only one newline at the end
 cleanPutStrLn :: Text -> IO ()
