@@ -6,8 +6,8 @@ module Language.ASTrein.AST
     , FileMatches
     , MatchOutput
     , parseAST
+    , jsonParseAST
     , performMatch
-    , performJSONMatch
     ) where
 
 import Data.Aeson (FromJSON, decode)
@@ -58,27 +58,18 @@ parseAST fileName fileContent = transform $ parseAST' fileContent
     where transform (Just a) = Right a
           transform Nothing = Left fileName
 
+-- | a simple implementation of parseAST' for JSON-backed AST machinery
+jsonParseAST :: (AST a, FromJSON a) => Text -> Maybe a
+jsonParseAST = decode . fromStrict . encodeUtf8
+
 -- | match a query in textual represenation on an AST taken from a file
 -- returns a wrapped Nothing on query parsing failure and a Nothing in the list
 -- for each file that could not be parsed into an AST.
-performMatch :: AST a => Text -> [FilePath] -> IO (MatchOutput a)
-performMatch queryText files
+performMatch :: AST a => Text -> (FilePath -> IO Text) -> [FilePath] -> IO (MatchOutput a)
+performMatch queryText getASTText files
     | Just query <- parseQuery queryText >>= verifyQuery = do
-        contents <- mapM TIO.readFile files
+        contents <- mapM getASTText files
         let asts = zipWith parseAST files contents
         return . Just $ zipWith3 (transform query) files contents asts
     | otherwise = return Nothing
     where transform q fN fC = fmap (ASTMatches fN fC . match q)
-
-performJSONMatch :: (AST a, FromJSON a)
-                 => Text -> (FilePath -> IO Text) -> [FilePath] -> IO (MatchOutput a)
-performJSONMatch queryText getJSON files
-    | Just query <- parseQuery queryText >>= verifyQuery = do
-        contents <- mapM getJSON files
-        let asts = zipWith getAST files contents
-        return . Just $ zipWith3 (transform query) files contents asts
-    | otherwise = return Nothing
-    where transform q fN fC = fmap (ASTMatches fN fC . match q)
-          getAST fileName content = case decode . fromStrict $ encodeUtf8 content of
-                                      Just ast -> Right ast
-                                      Nothing -> Left fileName

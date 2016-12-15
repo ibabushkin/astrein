@@ -3,6 +3,7 @@ resolver: lts-7.7
 packages:
 - astrein
 - astrein-haskell
+- astrein-rust
 
 extra-deps:
 - haskell-src-exts-1.18.2
